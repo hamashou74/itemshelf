@@ -1,0 +1,30 @@
+name: Work Item
+description: Track a scoped change to the project.
+title: ""
+body:
+  - type: dropdown
+    id: type
+    attributes:
+      label: Type
+      options:
+        - Feature
+        - Bug
+        - Chore
+    validations:
+      required: true
+
+  - type: textarea
+    id: goal
+    attributes:
+      label: Goal
+      description: What should be possible or fixed when this issue is complete?
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance-criteria
+    attributes:
+      label: Acceptance Criteria
+      description: What conditions must be satisfied to consider this complete?
+    validations:
+      required: true
