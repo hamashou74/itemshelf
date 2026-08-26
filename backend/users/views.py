@@ -19,8 +19,8 @@ from .serializers import CurrentUserSerializer, LoginSerializer
     name="dispatch",
 )
 class CsrfView(APIView):
-    authentication_classes = []
-    permission_classes = [AllowAny]
+    authentication_classes = ()
+    permission_classes = (AllowAny,)
 
     def get(self, request: Request) -> Response:
         return Response(status=status.HTTP_200_OK)
@@ -28,8 +28,8 @@ class CsrfView(APIView):
 
 @method_decorator([sensitive_post_parameters(), never_cache], name="dispatch")
 class LoginView(APIView):
-    authentication_classes = [CsrfRequiredSessionAuthentication]
-    permission_classes = [AllowAny]
+    authentication_classes = (CsrfRequiredSessionAuthentication,)
+    permission_classes = (AllowAny,)
 
     @sensitive_variables()
     def post(self, request: Request) -> Response:
