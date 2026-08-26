@@ -6,3 +6,22 @@ dependencies = [
     "django>=6.1",
     "djangorestframework>=3.18.0",
 ]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.16.4,<0.17",
+]
+
+[tool.ruff]
+required-version = ">=0.16,<0.17"
+extend-exclude = ["**/migrations/*.py"]
+
+[tool.ruff.lint]
+extend-select = [
+    "DJ",
+    "S",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"**/tests.py" = ["S105", "S106"]
+"**/tests/**" = ["S105", "S106"]
