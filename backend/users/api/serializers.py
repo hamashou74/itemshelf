@@ -3,7 +3,7 @@ from django.utils.translation import gettext_lazy as _
 from django.views.decorators.debug import sensitive_variables
 from rest_framework import serializers
 
-from .models import User
+from ..models import User
 
 
 class LoginSerializer(serializers.Serializer):
