@@ -1,2 +1,7 @@
 sandbox/
 research/
+
+# VS Code
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
