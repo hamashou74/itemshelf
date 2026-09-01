@@ -4,7 +4,7 @@ from django.test import TestCase
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from .models import User
+from ..models import User
 
 CSRF_URL = "/api/auth/csrf"
 LOGIN_URL = "/api/auth/login"
