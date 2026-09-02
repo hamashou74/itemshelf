@@ -1,15 +1,16 @@
 from django.conf import settings
 from django.contrib.auth import SESSION_KEY
 from django.test import TestCase
+from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
 
 from ..models import User
 
-CSRF_URL = "/api/auth/csrf"
-LOGIN_URL = "/api/auth/login"
-LOGOUT_URL = "/api/auth/logout"
-ME_URL = "/api/auth/me"
+CSRF_URL = reverse("users:csrf")
+LOGIN_URL = reverse("users:login")
+LOGOUT_URL = reverse("users:logout")
+ME_URL = reverse("users:me")
 
 
 class SessionAuthenticationTests(TestCase):
@@ -237,4 +238,19 @@ class SessionAuthenticationTests(TestCase):
         self.assertEqual(
             me_response.status_code,
             status.HTTP_200_OK,
+        )
+
+    def test_login_rejects_non_json_content(self) -> None:
+        csrf_token = self._bootstrap_csrf()
+
+        response = self.client.post(
+            LOGIN_URL,
+            f"username={self.username}&password={self.password}",
+            content_type="application/x-www-form-urlencoded",
+            HTTP_X_CSRFTOKEN=csrf_token,
+        )
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
         )
