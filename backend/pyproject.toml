@@ -9,19 +9,23 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+    "poethepoet>=0.48.0",
     "ruff>=0.16.4,<0.17",
 ]
 
-[tool.ruff]
-required-version = ">=0.16,<0.17"
-extend-exclude = ["**/migrations/*.py"]
+[tool.poe.tasks]
+lint = "ruff check ."
+format = "ruff format ."
+format-check = "ruff format --check ."
+migrations-check = "python manage.py makemigrations --check"
+check = "python manage.py check"
+test = "python manage.py test"
 
-[tool.ruff.lint]
-extend-select = [
-    "DJ",
-    "S",
+[tool.poe.tasks.ci]
+sequence = [
+    "lint",
+    "format-check",
+    "migrations-check",
+    "check",
+    "test",
 ]
-
-[tool.ruff.lint.per-file-ignores]
-"**/tests.py" = ["S105", "S106"]
-"**/tests/**" = ["S105", "S106"]
