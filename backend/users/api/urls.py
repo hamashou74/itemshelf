@@ -2,7 +2,7 @@ from django.urls import path
 
 from .views import CsrfView, CurrentUserView, LoginView, LogoutView
 
-app_name = "users"
+app_name = "auth"
 
 urlpatterns = [
     path("csrf", CsrfView.as_view(), name="csrf"),

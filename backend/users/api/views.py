@@ -31,7 +31,6 @@ class CsrfView(APIView):
     permission_classes = (AllowAny,)
 
     @extend_schema(
-        operation_id="auth_csrf",
         tags=[AUTH_TAG],
         auth=[],
         request=None,
@@ -45,14 +44,16 @@ class CsrfView(APIView):
         return Response(status=status.HTTP_200_OK)
 
 
-@method_decorator([sensitive_post_parameters(), never_cache], name="dispatch")
+@method_decorator(
+    [sensitive_post_parameters(), never_cache],
+    name="dispatch",
+)
 class LoginView(APIView):
     authentication_classes = (CsrfRequiredSessionAuthentication,)
     permission_classes = (AllowAny,)
     parser_classes = (JSONParser,)
 
     @extend_schema(
-        operation_id="auth_login",
         tags=[AUTH_TAG],
         auth=[],
         parameters=[CSRF_HEADER_PARAMETER],
@@ -91,7 +92,6 @@ class LoginView(APIView):
 
 class LogoutView(APIView):
     @extend_schema(
-        operation_id="auth_logout",
         tags=[AUTH_TAG],
         parameters=[CSRF_HEADER_PARAMETER],
         request=None,
@@ -115,7 +115,6 @@ class LogoutView(APIView):
 @method_decorator(never_cache, name="dispatch")
 class CurrentUserView(APIView):
     @extend_schema(
-        operation_id="auth_me",
         tags=[AUTH_TAG],
         responses={
             status.HTTP_200_OK: CurrentUserSerializer,
@@ -127,4 +126,5 @@ class CurrentUserView(APIView):
     )
     def get(self, request: Request) -> Response:
         serializer = CurrentUserSerializer(request.user)
+
         return Response(serializer.data)

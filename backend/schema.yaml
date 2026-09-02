@@ -5,7 +5,7 @@ info:
 paths:
   /api/auth/csrf:
     get:
-      operationId: auth_csrf
+      operationId: auth_csrf_retrieve
       tags:
       - auth
       responses:
@@ -13,7 +13,7 @@ paths:
           description: CSRF cookie initialized successfully.
   /api/auth/login:
     post:
-      operationId: auth_login
+      operationId: auth_login_create
       parameters:
       - in: header
         name: X-CSRFTOKEN
@@ -54,7 +54,7 @@ paths:
           description: The request Content-Type is not supported.
   /api/auth/logout:
     post:
-      operationId: auth_logout
+      operationId: auth_logout_create
       parameters:
       - in: header
         name: X-CSRFTOKEN
@@ -78,7 +78,7 @@ paths:
           description: Authentication or CSRF validation failed.
   /api/auth/me:
     get:
-      operationId: auth_me
+      operationId: auth_me_retrieve
       tags:
       - auth
       security:

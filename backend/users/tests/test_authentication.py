@@ -7,10 +7,10 @@ from rest_framework.test import APIClient
 
 from ..models import User
 
-CSRF_URL = reverse("users:csrf")
-LOGIN_URL = reverse("users:login")
-LOGOUT_URL = reverse("users:logout")
-ME_URL = reverse("users:me")
+CSRF_PATH = reverse("auth:csrf")
+LOGIN_PATH = reverse("auth:login")
+LOGOUT_PATH = reverse("auth:logout")
+CURRENT_USER_PATH = reverse("auth:me")
 
 
 class SessionAuthenticationTests(TestCase):
@@ -28,7 +28,7 @@ class SessionAuthenticationTests(TestCase):
         return self.client.cookies[settings.CSRF_COOKIE_NAME].value
 
     def _bootstrap_csrf(self) -> str:
-        response = self.client.get(CSRF_URL)
+        response = self.client.get(CSRF_PATH)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn(
@@ -42,7 +42,7 @@ class SessionAuthenticationTests(TestCase):
         csrf_token = self._bootstrap_csrf()
 
         response = self.client.post(
-            LOGIN_URL,
+            LOGIN_PATH,
             {
                 "username": self.username,
                 "password": self.password,
@@ -60,7 +60,7 @@ class SessionAuthenticationTests(TestCase):
 
     def test_login_without_csrf_is_rejected(self) -> None:
         response = self.client.post(
-            LOGIN_URL,
+            LOGIN_PATH,
             {
                 "username": self.username,
                 "password": self.password,
@@ -89,7 +89,7 @@ class SessionAuthenticationTests(TestCase):
         csrf_token_before_login = self._bootstrap_csrf()
 
         response = self.client.post(
-            LOGIN_URL,
+            LOGIN_PATH,
             {
                 "username": self.username,
                 "password": self.password,
@@ -122,7 +122,7 @@ class SessionAuthenticationTests(TestCase):
         csrf_token = self._bootstrap_csrf()
 
         existing_user_response = self.client.post(
-            LOGIN_URL,
+            LOGIN_PATH,
             {
                 "username": self.username,
                 "password": "wrong-password",
@@ -132,7 +132,7 @@ class SessionAuthenticationTests(TestCase):
         )
 
         missing_user_response = self.client.post(
-            LOGIN_URL,
+            LOGIN_PATH,
             {
                 "username": "missing-user",
                 "password": "wrong-password",
@@ -169,7 +169,7 @@ class SessionAuthenticationTests(TestCase):
     def test_authenticated_user_can_access_me(self) -> None:
         self._login()
 
-        response = self.client.get(ME_URL)
+        response = self.client.get(CURRENT_USER_PATH)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(
@@ -180,7 +180,7 @@ class SessionAuthenticationTests(TestCase):
         )
 
     def test_unauthenticated_user_cannot_access_me(self) -> None:
-        response = self.client.get(ME_URL)
+        response = self.client.get(CURRENT_USER_PATH)
 
         self.assertEqual(
             response.status_code,
@@ -194,7 +194,7 @@ class SessionAuthenticationTests(TestCase):
         csrf_token = self._csrf_token()
 
         response = self.client.post(
-            LOGOUT_URL,
+            LOGOUT_PATH,
             HTTP_X_CSRFTOKEN=csrf_token,
         )
 
@@ -204,10 +204,10 @@ class SessionAuthenticationTests(TestCase):
             self.client.session,
         )
 
-        me_response = self.client.get(ME_URL)
+        current_user_response = self.client.get(CURRENT_USER_PATH)
 
         self.assertEqual(
-            me_response.status_code,
+            current_user_response.status_code,
             status.HTTP_403_FORBIDDEN,
         )
 
@@ -216,7 +216,7 @@ class SessionAuthenticationTests(TestCase):
     ) -> None:
         self._login()
 
-        response = self.client.post(LOGOUT_URL)
+        response = self.client.post(LOGOUT_PATH)
 
         self.assertEqual(
             response.status_code,
@@ -233,10 +233,10 @@ class SessionAuthenticationTests(TestCase):
             self.client.session,
         )
 
-        me_response = self.client.get(ME_URL)
+        current_user_response = self.client.get(CURRENT_USER_PATH)
 
         self.assertEqual(
-            me_response.status_code,
+            current_user_response.status_code,
             status.HTTP_200_OK,
         )
 
@@ -244,7 +244,7 @@ class SessionAuthenticationTests(TestCase):
         csrf_token = self._bootstrap_csrf()
 
         response = self.client.post(
-            LOGIN_URL,
+            LOGIN_PATH,
             f"username={self.username}&password={self.password}",
             content_type="application/x-www-form-urlencoded",
             HTTP_X_CSRFTOKEN=csrf_token,

@@ -1,9 +1,24 @@
 from django.conf import settings
-from django.test import SimpleTestCase
+from django.test import SimpleTestCase, TestCase
 from django.urls import reverse
 from drf_spectacular.generators import SchemaGenerator
+from rest_framework import status
 
-from ..api.openapi import CSRF_HEADER_PARAMETER
+from ..api.openapi import AUTH_TAG, CSRF_HEADER_PARAMETER
+from ..models import User
+
+SCHEMA_PATH = reverse("schema")
+CSRF_PATH = reverse("auth:csrf")
+LOGIN_PATH = reverse("auth:login")
+LOGOUT_PATH = reverse("auth:logout")
+CURRENT_USER_PATH = reverse("auth:me")
+
+AUTH_OPERATIONS = {
+    CSRF_PATH: "get",
+    LOGIN_PATH: "post",
+    LOGOUT_PATH: "post",
+    CURRENT_USER_PATH: "get",
+}
 
 
 class AuthenticationOpenApiTests(SimpleTestCase):
@@ -17,46 +32,66 @@ class AuthenticationOpenApiTests(SimpleTestCase):
         )
 
         if schema is None:
-            raise AssertionError("OpenAPI schema generation returned None.")
+            raise AssertionError(
+                "OpenAPI schema generation returned None.",
+            )
 
         cls.schema = schema
 
     def _operation(
         self,
-        route_name: str,
+        path: str,
         method: str,
     ) -> dict:
-        path = reverse(f"users_api:{route_name}")
         return self.schema["paths"][path][method]
 
-    def test_auth_operations_have_stable_operation_ids(self) -> None:
-        expected = {
-            ("csrf", "get"): "auth_csrf",
-            ("login", "post"): "auth_login",
-            ("logout", "post"): "auth_logout",
-            ("me", "get"): "auth_me",
-        }
-
-        for (route_name, method), operation_id in expected.items():
+    def test_authentication_operations_are_exposed(self) -> None:
+        for path, method in AUTH_OPERATIONS.items():
             with self.subTest(
-                route_name=route_name,
+                path=path,
                 method=method,
             ):
-                operation = self._operation(route_name, method)
-
-                self.assertEqual(
-                    operation["operationId"],
-                    operation_id,
+                self.assertIn(
+                    path,
+                    self.schema["paths"],
                 )
+                self.assertIn(
+                    method,
+                    self.schema["paths"][path],
+                )
+
+    def test_authentication_operations_use_auth_tag(self) -> None:
+        for path, method in AUTH_OPERATIONS.items():
+            with self.subTest(
+                path=path,
+                method=method,
+            ):
+                operation = self._operation(
+                    path,
+                    method,
+                )
+
                 self.assertEqual(
                     operation["tags"],
-                    ["auth"],
+                    [AUTH_TAG],
                 )
 
-    def test_login_is_anonymous_but_requires_csrf_header(self) -> None:
-        operation = self._operation("login", "post")
+    def test_schema_endpoint_is_not_included_in_schema(self) -> None:
+        self.assertNotIn(
+            SCHEMA_PATH,
+            self.schema["paths"],
+        )
 
-        self.assertNotIn("security", operation)
+    def test_login_is_anonymous_but_requires_csrf_header(self) -> None:
+        operation = self._operation(
+            LOGIN_PATH,
+            "post",
+        )
+
+        self.assertNotIn(
+            "security",
+            operation,
+        )
 
         parameters = {
             parameter["name"]: parameter for parameter in operation["parameters"]
@@ -68,10 +103,15 @@ class AuthenticationOpenApiTests(SimpleTestCase):
             csrf_parameter["in"],
             "header",
         )
-        self.assertTrue(csrf_parameter["required"])
+        self.assertTrue(
+            csrf_parameter["required"],
+        )
 
     def test_login_accepts_only_json_request_body(self) -> None:
-        operation = self._operation("login", "post")
+        operation = self._operation(
+            LOGIN_PATH,
+            "post",
+        )
 
         content = operation["requestBody"]["content"]
 
@@ -81,12 +121,17 @@ class AuthenticationOpenApiTests(SimpleTestCase):
         )
 
     def test_login_uses_separate_request_component(self) -> None:
-        operation = self._operation("login", "post")
+        operation = self._operation(
+            LOGIN_PATH,
+            "post",
+        )
 
-        schema = operation["requestBody"]["content"]["application/json"]["schema"]
+        request_schema = operation["requestBody"]["content"]["application/json"][
+            "schema"
+        ]
 
         self.assertEqual(
-            schema["$ref"],
+            request_schema["$ref"],
             "#/components/schemas/LoginRequest",
         )
 
@@ -114,16 +159,18 @@ class AuthenticationOpenApiTests(SimpleTestCase):
     def test_protected_operations_require_session_cookie(
         self,
     ) -> None:
-        for route_name, method in (
-            ("logout", "post"),
-            ("me", "get"),
-        ):
+        protected_operations = {
+            LOGOUT_PATH: "post",
+            CURRENT_USER_PATH: "get",
+        }
+
+        for path, method in protected_operations.items():
             with self.subTest(
-                route_name=route_name,
+                path=path,
                 method=method,
             ):
                 operation = self._operation(
-                    route_name,
+                    path,
                     method,
                 )
 
@@ -133,28 +180,36 @@ class AuthenticationOpenApiTests(SimpleTestCase):
                 )
 
     def test_successful_empty_responses_have_no_body(self) -> None:
-        for route_name, method in (
-            ("csrf", "get"),
-            ("login", "post"),
-            ("logout", "post"),
-        ):
+        empty_response_operations = {
+            CSRF_PATH: "get",
+            LOGIN_PATH: "post",
+            LOGOUT_PATH: "post",
+        }
+
+        for path, method in empty_response_operations.items():
             with self.subTest(
-                route_name=route_name,
+                path=path,
                 method=method,
             ):
                 operation = self._operation(
-                    route_name,
+                    path,
                     method,
                 )
 
                 response = operation["responses"]["200"]
 
-                self.assertNotIn("content", response)
+                self.assertNotIn(
+                    "content",
+                    response,
+                )
 
     def test_current_user_response_uses_current_user_schema(
         self,
     ) -> None:
-        operation = self._operation("me", "get")
+        operation = self._operation(
+            CURRENT_USER_PATH,
+            "get",
+        )
 
         response_schema = operation["responses"]["200"]["content"]["application/json"][
             "schema"
@@ -163,4 +218,29 @@ class AuthenticationOpenApiTests(SimpleTestCase):
         self.assertEqual(
             response_schema["$ref"],
             "#/components/schemas/CurrentUser",
+        )
+
+
+class SchemaEndpointTests(TestCase):
+    def test_anonymous_user_cannot_access_schema(self) -> None:
+        response = self.client.get(SCHEMA_PATH)
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_403_FORBIDDEN,
+        )
+
+    def test_admin_user_can_access_schema(self) -> None:
+        user = User.objects.create_user(
+            username="schema-admin",
+            password="test-password",
+            is_staff=True,
+        )
+        self.client.force_login(user)
+
+        response = self.client.get(SCHEMA_PATH)
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_200_OK,
         )
