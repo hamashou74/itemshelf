@@ -1,0 +1,12 @@
+required-version = ">=0.16,<0.17"
+extend-exclude = ["**/migrations/*.py"]
+
+[lint]
+extend-select = [
+    "DJ",
+    "S",
+]
+
+[lint.per-file-ignores]
+"**/tests.py" = ["S105", "S106"]
+"**/tests/**" = ["S105", "S106"]

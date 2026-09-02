@@ -46,19 +46,19 @@ jobs:
         run: uv sync --locked
 
       - name: Run Ruff lint
-        run: uv run ruff check --output-format=github .
+        run: uv run poe lint --output-format=github
 
       - name: Check Ruff formatting
-        run: uv run ruff format --check .
+        run: uv run poe format-check
 
       - name: Check migrations
-        run: uv run python manage.py makemigrations --check
+        run: uv run poe migrations-check
 
       - name: Run Django system checks
-        run: uv run python manage.py check
+        run: uv run poe check
 
       - name: Run Django tests
-        run: uv run python manage.py test
+        run: uv run poe test
 
   frontend:
     name: Frontend
