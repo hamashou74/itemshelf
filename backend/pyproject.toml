@@ -9,6 +9,7 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+    "coverage>=7.16.0",
     "poethepoet>=0.48.0",
     "ruff>=0.16.4,<0.17",
 ]
@@ -28,4 +29,10 @@ sequence = [
     "migrations-check",
     "check",
     "test",
+]
+
+[tool.poe.tasks.coverage]
+sequence = [
+    { cmd = "coverage run manage.py test" },
+    { cmd = "coverage lcov" },
 ]
