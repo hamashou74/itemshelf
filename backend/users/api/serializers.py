@@ -46,3 +46,7 @@ class CurrentUserSerializer(serializers.ModelSerializer):
         model = User
         fields = ("id",)
         read_only_fields = ("id",)
+
+
+class ErrorDetailSerializer(serializers.Serializer):
+    detail = serializers.CharField(read_only=True)

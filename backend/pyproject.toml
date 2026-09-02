@@ -5,6 +5,7 @@ requires-python = ">=3.14"
 dependencies = [
     "django>=6.1",
     "djangorestframework>=3.18.0",
+    "drf-spectacular>=0.30.0",
 ]
 
 [dependency-groups]
@@ -20,7 +21,12 @@ format = "ruff format ."
 format-check = "ruff format --check ."
 migrations-check = "python manage.py makemigrations --check"
 check = "python manage.py check"
+schema = "python manage.py spectacular --file schema.yaml --validate --fail-on-warn"
 test = "python manage.py test"
+
+[tool.poe.tasks.schema-check]
+shell = "git diff --exit-code -- schema.yaml"
+deps = ["schema"]
 
 [tool.poe.tasks.ci]
 sequence = [
@@ -28,6 +34,7 @@ sequence = [
     "format-check",
     "migrations-check",
     "check",
+    "schema-check",
     "test",
 ]
 

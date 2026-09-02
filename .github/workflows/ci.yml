@@ -57,6 +57,9 @@ jobs:
       - name: Run Django system checks
         run: uv run poe check
 
+      - name: Check OpenAPI schema
+        run: uv run poe schema-check
+
       - name: Run Django tests
         run: uv run poe test
 

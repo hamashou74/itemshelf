@@ -1,0 +1,136 @@
+openapi: 3.0.3
+info:
+  title: Itemshelf API
+  version: 0.1.0
+paths:
+  /api/auth/csrf:
+    get:
+      operationId: auth_csrf_retrieve
+      tags:
+      - auth
+      responses:
+        '200':
+          description: CSRF cookie initialized successfully.
+  /api/auth/login:
+    post:
+      operationId: auth_login_create
+      parameters:
+      - in: header
+        name: X-CSRFTOKEN
+        schema:
+          type: string
+        description: CSRF token corresponding to the `csrftoken` cookie. Obtain the
+          cookie from the CSRF bootstrap endpoint.
+        required: true
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+        required: true
+      responses:
+        '200':
+          description: Authenticated session created successfully.
+        '400':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: Request or credential validation failed.
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorDetail'
+          description: CSRF validation failed.
+        '415':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorDetail'
+          description: The request Content-Type is not supported.
+  /api/auth/logout:
+    post:
+      operationId: auth_logout_create
+      parameters:
+      - in: header
+        name: X-CSRFTOKEN
+        schema:
+          type: string
+        description: CSRF token corresponding to the `csrftoken` cookie. Obtain the
+          cookie from the CSRF bootstrap endpoint.
+        required: true
+      tags:
+      - auth
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          description: Authenticated session terminated successfully.
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorDetail'
+          description: Authentication or CSRF validation failed.
+  /api/auth/me:
+    get:
+      operationId: auth_me_retrieve
+      tags:
+      - auth
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CurrentUser'
+          description: ''
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorDetail'
+          description: Authentication is required.
+components:
+  schemas:
+    CurrentUser:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+      required:
+      - id
+    ErrorDetail:
+      type: object
+      properties:
+        detail:
+          type: string
+          readOnly: true
+      required:
+      - detail
+    LoginRequest:
+      type: object
+      properties:
+        username:
+          type: string
+          writeOnly: true
+          minLength: 1
+        password:
+          type: string
+          writeOnly: true
+          minLength: 1
+      required:
+      - password
+      - username
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: sessionid
