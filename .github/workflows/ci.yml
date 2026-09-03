@@ -68,6 +68,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
+    env:
+      BACKEND_API_ORIGIN: "http://127.0.0.1:8000"
+      API_TIMEOUT_MS: "10000"
+      NEXT_PUBLIC_API_TIMEOUT_MS: "10000"
+
     defaults:
       run:
         working-directory: frontend
@@ -88,11 +93,17 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Generate API client
+        run: npm run api:generate
+
       - name: Check formatting
         run: npm run format:check
 
       - name: Run ESLint
         run: npm run lint
+
+      - name: Run frontend tests
+        run: npm run test:run
 
       - name: Build application
         run: npm run build

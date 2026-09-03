@@ -8,7 +8,12 @@ export default defineConfig({
   },
   test: {
     environment: "jsdom",
-    passWithNoTests: true,
+    environmentOptions: {
+      jsdom: {
+        url: "http://localhost:3000",
+      },
+    },
+    setupFiles: ["./test/setup.ts"],
     coverage: {
       reporter: ["text", "lcov"],
     },
