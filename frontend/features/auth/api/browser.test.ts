@@ -1,109 +1,116 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { HttpResponse, http } from "msw";
+import { describe, expect, it } from "vitest";
 
-const mocks = vi.hoisted(() => ({
-  login: vi.fn(),
-  logout: vi.fn(),
-  me: vi.fn(),
-}));
-
-vi.mock("@/lib/api/csrf", () => ({
-  withCsrf: async <T>(request: () => Promise<T>) => request(),
-}));
-
-vi.mock("@/lib/api/generated/client/auth/auth", () => ({
-  getAuth: () => ({
-    authLoginCreate: mocks.login,
-    authLogoutCreate: mocks.logout,
-    authMeRetrieve: mocks.me,
-  }),
-}));
+import { server } from "@/test/msw/server";
 
 import { authApi } from "./browser";
 
-function axiosError(status: number) {
-  return {
-    isAxiosError: true,
-    response: {
-      status,
-    },
-  };
+const credentials = {
+  username: "alice",
+  password: "password",
+};
+
+function setCsrfCookie() {
+  document.cookie = "csrftoken=test-csrf-token; Path=/";
 }
 
 describe("authApi", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
+  it("logs in and sends the current CSRF token", async () => {
+    setCsrfCookie();
 
-    mocks.login.mockResolvedValue({});
-    mocks.logout.mockResolvedValue({});
-    mocks.me.mockResolvedValue({});
-  });
+    server.use(
+      http.post("*/api/auth/login", ({ request }) => {
+        expect(request.headers.get("x-csrftoken")).toBe("test-csrf-token");
 
-  it("returns success after login", async () => {
-    await expect(
-      authApi.login({
-        username: "alice",
-        password: "password",
+        return new HttpResponse(null, {
+          status: 200,
+        });
       }),
-    ).resolves.toEqual({
+    );
+
+    await expect(authApi.login(credentials)).resolves.toEqual({
       ok: true,
     });
   });
 
   it("maps login 400 to invalid credentials", async () => {
-    mocks.login.mockRejectedValue(axiosError(400));
+    setCsrfCookie();
 
-    await expect(
-      authApi.login({
-        username: "alice",
-        password: "wrong",
-      }),
-    ).resolves.toEqual({
+    server.use(
+      http.post("*/api/auth/login", () =>
+        HttpResponse.json(
+          {},
+          {
+            status: 400,
+          },
+        ),
+      ),
+    );
+
+    await expect(authApi.login(credentials)).resolves.toEqual({
       ok: false,
       reason: "invalid-credentials",
     });
   });
 
   it("maps login 403 to a security failure", async () => {
-    mocks.login.mockRejectedValue(axiosError(403));
+    setCsrfCookie();
 
-    await expect(
-      authApi.login({
-        username: "alice",
-        password: "password",
-      }),
-    ).resolves.toEqual({
+    server.use(
+      http.post("*/api/auth/login", () =>
+        HttpResponse.json(
+          {
+            detail: "CSRF validation failed.",
+          },
+          {
+            status: 403,
+          },
+        ),
+      ),
+    );
+
+    await expect(authApi.login(credentials)).resolves.toEqual({
       ok: false,
       reason: "security",
     });
   });
 
-  it("returns signed-out after successful logout", async () => {
+  it("logs out and sends the current CSRF token", async () => {
+    setCsrfCookie();
+
+    server.use(
+      http.post("*/api/auth/logout", ({ request }) => {
+        expect(request.headers.get("x-csrftoken")).toBe("test-csrf-token");
+
+        return new HttpResponse(null, {
+          status: 200,
+        });
+      }),
+    );
+
     await expect(authApi.logout()).resolves.toEqual({
-      state: "signed-out",
+      ok: true,
     });
   });
 
-  it("treats logout 403 with no active session as signed out", async () => {
-    mocks.logout.mockRejectedValue(axiosError(403));
+  it("does not treat logout 403 as success", async () => {
+    setCsrfCookie();
 
-    mocks.me.mockRejectedValue(axiosError(403));
-
-    await expect(authApi.logout()).resolves.toEqual({
-      state: "signed-out",
-    });
-  });
-
-  it("keeps the user signed in when logout fails security validation", async () => {
-    mocks.logout.mockRejectedValue(axiosError(403));
-
-    mocks.me.mockResolvedValue({
-      data: {
-        id: "949c597a-2520-4e00-bcd7-e808f87abc91",
-      },
-    });
+    server.use(
+      http.post("*/api/auth/logout", () =>
+        HttpResponse.json(
+          {
+            detail: "CSRF validation failed.",
+          },
+          {
+            status: 403,
+          },
+        ),
+      ),
+    );
 
     await expect(authApi.logout()).resolves.toEqual({
-      state: "still-authenticated",
+      ok: false,
       reason: "security",
     });
   });

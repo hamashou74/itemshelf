@@ -8,7 +8,7 @@ export default defineConfig({
       target: openApiSchema,
     },
     output: {
-      target: "./lib/api/generated/client/api.ts",
+      target: "./lib/api/generated/client",
       schemas: {
         path: "./lib/api/generated/models",
         splitByTags: true,
@@ -43,7 +43,7 @@ export default defineConfig({
       target: openApiSchema,
     },
     output: {
-      target: "./lib/api/generated/validation/api.ts",
+      target: "./lib/api/generated/validation/",
       schemas: {
         path: "./lib/api/generated/validation/schemas",
         type: "zod",

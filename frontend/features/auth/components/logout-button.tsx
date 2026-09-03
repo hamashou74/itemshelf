@@ -22,19 +22,17 @@ export function LogoutButton() {
 
     const result = await authApi.logout();
 
-    if (result.state === "signed-out") {
+    if (result.ok) {
       router.replace("/login");
       return;
     }
 
-    if (result.state === "still-authenticated") {
+    if (result.reason === "security") {
       setErrorMessage(
         "セキュリティ検証に失敗したため、ログアウトできませんでした。もう一度お試しください。",
       );
     } else {
-      setErrorMessage(
-        "ログアウト状態を確認できませんでした。もう一度お試しください。",
-      );
+      setErrorMessage("ログアウトに失敗しました。もう一度お試しください。");
     }
 
     setIsSubmitting(false);

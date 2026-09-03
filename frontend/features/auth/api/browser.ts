@@ -18,15 +18,11 @@ export type LoginResult =
 
 export type LogoutResult =
   | {
-      state: "signed-out";
+      ok: true;
     }
   | {
-      state: "still-authenticated";
-      reason: "security";
-    }
-  | {
-      state: "unknown";
-      reason: "unexpected";
+      ok: false;
+      reason: "security" | "unexpected";
     };
 
 async function login(credentials: LoginRequest): Promise<LoginResult> {
@@ -66,52 +62,23 @@ async function login(credentials: LoginRequest): Promise<LoginResult> {
   }
 }
 
-async function isSessionActive(): Promise<boolean | null> {
-  try {
-    await generatedAuthApi.authMeRetrieve();
-
-    return true;
-  } catch (error) {
-    if (axios.isAxiosError(error) && error.response?.status === 403) {
-      return false;
-    }
-
-    return null;
-  }
-}
-
 async function logout(): Promise<LogoutResult> {
   try {
     await withCsrf(() => generatedAuthApi.authLogoutCreate());
 
     return {
-      state: "signed-out",
+      ok: true,
     };
   } catch (error) {
-    if (!axios.isAxiosError(error) || error.response?.status !== 403) {
+    if (axios.isAxiosError(error) && error.response?.status === 403) {
       return {
-        state: "unknown",
-        reason: "unexpected",
-      };
-    }
-
-    const sessionActive = await isSessionActive();
-
-    if (sessionActive === false) {
-      return {
-        state: "signed-out",
-      };
-    }
-
-    if (sessionActive === true) {
-      return {
-        state: "still-authenticated",
+        ok: false,
         reason: "security",
       };
     }
 
     return {
-      state: "unknown",
+      ok: false,
       reason: "unexpected",
     };
   }

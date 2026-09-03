@@ -1,7 +1,11 @@
 const DEFAULT_BACKEND_API_ORIGIN = "http://127.0.0.1:8000";
 
 export function getBackendApiOrigin(): string {
-  const value = process.env.BACKEND_API_ORIGIN ?? DEFAULT_BACKEND_API_ORIGIN;
+  const value = process.env.BACKEND_API_ORIGIN;
+
+  if (value === undefined) {
+    throw new Error("BACKEND_API_ORIGIN is required.");
+  }
 
   const url = new URL(value);
 
