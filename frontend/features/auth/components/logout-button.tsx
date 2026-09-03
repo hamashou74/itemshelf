@@ -31,6 +31,7 @@ export function LogoutButton() {
       setErrorMessage(
         "セキュリティ検証に失敗したため、ログアウトできませんでした。もう一度お試しください。",
       );
+      router.refresh();
     } else {
       setErrorMessage("ログアウトに失敗しました。もう一度お試しください。");
     }
