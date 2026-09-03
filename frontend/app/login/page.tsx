@@ -12,7 +12,7 @@ export default async function LoginPage() {
   const currentUser = await getCurrentUser();
 
   if (currentUser !== null) {
-    redirect("/");
+    redirect("/home");
   }
 
   return (

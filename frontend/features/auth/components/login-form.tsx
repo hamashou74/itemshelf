@@ -36,7 +36,7 @@ export function LoginForm() {
     });
 
     if (result.ok) {
-      router.replace("/");
+      router.replace("/home");
       return;
     }
 

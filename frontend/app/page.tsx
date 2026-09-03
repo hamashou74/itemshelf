@@ -1,18 +1,13 @@
-import { requireCurrentUser } from "@/features/auth/api/server";
-import { LogoutButton } from "@/features/auth/components/logout-button";
+import { redirect } from "next/navigation";
 
-export default async function HomePage() {
-  await requireCurrentUser();
+import { getCurrentUser } from "@/features/auth/api/server";
 
-  return (
-    <main className="flex flex-1 flex-col gap-8 px-6 py-12">
-      <div>
-        <h1 className="text-2xl font-semibold">Itemshelf</h1>
+export default async function RootPage() {
+  const currentUser = await getCurrentUser();
 
-        <p className="mt-2 text-sm opacity-70">ログインしています。</p>
-      </div>
+  if (currentUser === null) {
+    redirect("/login");
+  }
 
-      <LogoutButton />
-    </main>
-  );
+  redirect("/home");
 }
