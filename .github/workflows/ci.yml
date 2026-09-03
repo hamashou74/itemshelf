@@ -70,6 +70,7 @@ jobs:
 
     env:
       BACKEND_API_ORIGIN: "http://127.0.0.1:8000"
+      API_TIMEOUT_MS: "10000"
       NEXT_PUBLIC_API_TIMEOUT_MS: "10000"
 
     defaults:

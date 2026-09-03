@@ -1,5 +1,9 @@
 import { setupServer } from "msw/node";
 
-import { getAuthMock } from "@/lib/api/generated/client/auth/auth.msw";
+import * as generatedMocks from "@/lib/api/generated/client/index.msw";
 
-export const server = setupServer(...getAuthMock());
+const handlers = Object.entries(generatedMocks).flatMap(([, getMock]) =>
+  getMock(),
+);
+
+export const server = setupServer(...handlers);

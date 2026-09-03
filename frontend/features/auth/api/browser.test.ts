@@ -1,8 +1,11 @@
 import { HttpResponse, http } from "msw";
 import { describe, expect, it } from "vitest";
 
+import {
+  getAuthCsrfRetrieveMockHandler,
+  getAuthLoginCreateMockHandler,
+} from "@/lib/api/generated/client/auth/auth.msw";
 import { server } from "@/test/msw/server";
-
 import { authApi } from "./browser";
 
 const credentials = {
@@ -112,6 +115,28 @@ describe("authApi", () => {
     await expect(authApi.logout()).resolves.toEqual({
       ok: false,
       reason: "security",
+    });
+  });
+
+  it("bootstraps CSRF before login when the cookie is missing", async () => {
+    let csrfBootstrapped = false;
+
+    server.use(
+      getAuthCsrfRetrieveMockHandler(() => {
+        csrfBootstrapped = true;
+
+        document.cookie = "csrftoken=bootstrapped-token; Path=/";
+      }),
+
+      getAuthLoginCreateMockHandler(({ request }) => {
+        expect(csrfBootstrapped).toBe(true);
+
+        expect(request.headers.get("x-csrftoken")).toBe("bootstrapped-token");
+      }),
+    );
+
+    await expect(authApi.login(credentials)).resolves.toEqual({
+      ok: true,
     });
   });
 });
