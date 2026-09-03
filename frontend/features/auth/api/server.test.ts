@@ -1,14 +1,5 @@
-import {
-    HttpResponse,
-    http,
-} from "msw";
-import {
-    beforeEach,
-    describe,
-    expect,
-    it,
-    vi,
-} from "vitest";
+import { HttpResponse, http } from "msw";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { getAuthMeRetrieveResponseMock } from "@/lib/api/generated/client/auth/auth.faker";
 import { getAuthMeRetrieveMockHandler } from "@/lib/api/generated/client/auth/auth.msw";
@@ -22,16 +13,11 @@ const mocks = vi.hoisted(() => ({
 vi.mock("server-only", () => ({}));
 
 vi.mock("react", async (importOriginal) => {
-  const actual =
-    await importOriginal<
-      typeof import("react")
-    >();
+  const actual = await importOriginal<typeof import("react")>();
 
   return {
     ...actual,
-    cache: <T extends (...args: never[]) => unknown>(
-      fn: T,
-    ) => fn,
+    cache: <T extends (...args: never[]) => unknown>(fn: T) => fn,
   };
 });
 
@@ -45,9 +31,7 @@ vi.mock("next/navigation", () => ({
 
 import { getCurrentUser } from "./server";
 
-function setSessionCookie(
-  value = "test-session",
-) {
+function setSessionCookie(value = "test-session") {
   mocks.cookies.mockResolvedValue({
     get: (name: string) =>
       name === "sessionid"
@@ -72,21 +56,16 @@ describe("getCurrentUser", () => {
     });
 
     server.use(
-      http.get(
-        "*/api/auth/me",
-        () => {
-          requested = true;
+      http.get("*/api/auth/me", () => {
+        requested = true;
 
-          return new HttpResponse(null, {
-            status: 500,
-          });
-        },
-      ),
+        return new HttpResponse(null, {
+          status: 500,
+        });
+      }),
     );
 
-    await expect(
-      getCurrentUser(),
-    ).resolves.toBeNull();
+    await expect(getCurrentUser()).resolves.toBeNull();
 
     expect(requested).toBe(false);
   });
@@ -94,91 +73,68 @@ describe("getCurrentUser", () => {
   it("returns a generated current-user fixture", async () => {
     setSessionCookie();
 
-    const currentUser =
-      getAuthMeRetrieveResponseMock();
+    const currentUser = getAuthMeRetrieveResponseMock();
 
     server.use(
-      getAuthMeRetrieveMockHandler(
-        ({ request }) => {
-          expect(
-            request.headers.get("cookie"),
-          ).toBe(
-            "sessionid=test-session",
-          );
+      getAuthMeRetrieveMockHandler(({ request }) => {
+        expect(request.headers.get("cookie")).toBe("sessionid=test-session");
 
-          return currentUser;
-        },
-      ),
+        return currentUser;
+      }),
     );
 
-    await expect(
-      getCurrentUser(),
-    ).resolves.toEqual(currentUser);
+    await expect(getCurrentUser()).resolves.toEqual(currentUser);
   });
 
   it("returns null for an unauthenticated response", async () => {
     setSessionCookie();
 
     server.use(
-      http.get(
-        "*/api/auth/me",
-        () =>
-          HttpResponse.json(
-            {
-              detail:
-                "Authentication is required.",
-            },
-            {
-              status: 403,
-            },
-          ),
+      http.get("*/api/auth/me", () =>
+        HttpResponse.json(
+          {
+            detail: "Authentication is required.",
+          },
+          {
+            status: 403,
+          },
+        ),
       ),
     );
 
-    await expect(
-      getCurrentUser(),
-    ).resolves.toBeNull();
+    await expect(getCurrentUser()).resolves.toBeNull();
   });
 
   it("rejects a malformed current-user response", async () => {
     setSessionCookie();
 
     server.use(
-      http.get(
-        "*/api/auth/me",
-        () =>
-          HttpResponse.json({
-            id: 123,
-          }),
+      http.get("*/api/auth/me", () =>
+        HttpResponse.json({
+          id: 123,
+        }),
       ),
     );
 
-    await expect(
-      getCurrentUser(),
-    ).rejects.toThrow();
+    await expect(getCurrentUser()).rejects.toThrow();
   });
 
   it("does not hide backend failures as unauthenticated", async () => {
     setSessionCookie();
 
     server.use(
-      http.get(
-        "*/api/auth/me",
-        () =>
-          HttpResponse.json(
-            {
-              detail:
-                "Internal server error.",
-            },
-            {
-              status: 500,
-            },
-          ),
+      http.get("*/api/auth/me", () =>
+        HttpResponse.json(
+          {
+            detail: "Internal server error.",
+          },
+          {
+            status: 500,
+          },
+        ),
       ),
     );
 
-    await expect(
-      getCurrentUser(),
-    ).rejects.toThrow();
+    await expect(getCurrentUser()).rejects.toThrow();
   });
 });

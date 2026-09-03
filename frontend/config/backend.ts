@@ -1,9 +1,7 @@
-const DEFAULT_BACKEND_API_ORIGIN = "http://127.0.0.1:8000";
-
 export function getBackendApiOrigin(): string {
   const value = process.env.BACKEND_API_ORIGIN;
 
-  if (value === undefined) {
+  if (value === undefined || value.trim() === "") {
     throw new Error("BACKEND_API_ORIGIN is required.");
   }
 
@@ -20,4 +18,20 @@ export function getBackendApiOrigin(): string {
   }
 
   return url.origin;
+}
+
+export function getApiTimeoutMs(): number {
+  const value = process.env.NEXT_PUBLIC_API_TIMEOUT_MS;
+
+  if (value === undefined || value.trim() === "") {
+    throw new Error("NEXT_PUBLIC_API_TIMEOUT_MS is required.");
+  }
+
+  const timeoutMs = Number(value);
+
+  if (!Number.isSafeInteger(timeoutMs) || timeoutMs <= 0) {
+    throw new Error("NEXT_PUBLIC_API_TIMEOUT_MS must be a positive integer.");
+  }
+
+  return timeoutMs;
 }
