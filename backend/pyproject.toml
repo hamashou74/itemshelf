@@ -11,6 +11,9 @@ dependencies = [
 [dependency-groups]
 dev = [
     "coverage>=7.16.0",
+    "django-stubs[compatible-mypy]>=6.1,<6.2",
+    "djangorestframework-stubs[compatible-mypy]>=3.18,<3.19",
+    "mypy>=2.3.1,<2.4",
     "poethepoet>=0.48.0",
     "ruff>=0.16.4,<0.17",
 ]
@@ -19,6 +22,7 @@ dev = [
 lint = "ruff check ."
 format = "ruff format ."
 format-check = "ruff format --check ."
+type-check = "mypy ."
 migrations-check = "python manage.py makemigrations --check"
 check = "python manage.py check"
 schema = "python manage.py spectacular --file schema.yaml --validate --fail-on-warn"
@@ -32,6 +36,7 @@ deps = ["schema"]
 sequence = [
     "lint",
     "format-check",
+    "type-check",
     "migrations-check",
     "check",
     "schema-check",
@@ -43,3 +48,12 @@ sequence = [
     { cmd = "coverage run manage.py test" },
     { cmd = "coverage lcov" },
 ]
+
+[tool.mypy]
+plugins = [
+    "mypy_django_plugin.main",
+    "mypy_drf_plugin.main",
+]
+
+[tool.django-stubs]
+django_settings_module = "config.settings.base"
