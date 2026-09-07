@@ -22,6 +22,8 @@ AUTH_OPERATIONS = {
 
 
 class AuthenticationOpenApiTests(SimpleTestCase):
+    schema: dict
+
     @classmethod
     def setUpClass(cls) -> None:
         super().setUpClass()
