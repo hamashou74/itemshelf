@@ -1,0 +1,44 @@
+name: Update backend type lock
+
+on:
+  push:
+    branches:
+      - chore/35-add-backend-type-checking
+
+permissions:
+  contents: write
+
+jobs:
+  update-lock:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7.0.1
+
+      - name: Set up Python
+        uses: actions/setup-python@v7.0.0
+        with:
+          python-version-file: backend/.python-version
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v10.0.1
+        with:
+          version: "0.12.6"
+          enable-cache: true
+
+      - name: Update lockfile
+        working-directory: backend
+        run: uv lock
+
+      - name: Commit generated lockfile
+        run: |
+          if git diff --quiet -- backend/uv.lock; then
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add backend/uv.lock
+          git commit -m "chore(backend): update type checking lockfile"
+          git push origin HEAD:chore/35-add-backend-type-checking
