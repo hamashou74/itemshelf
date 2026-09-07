@@ -51,6 +51,9 @@ jobs:
       - name: Check Ruff formatting
         run: uv run poe format-check
 
+      - name: Run backend type checks
+        run: uv run poe type-check
+
       - name: Check migrations
         run: uv run poe migrations-check
 
