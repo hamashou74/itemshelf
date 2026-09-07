@@ -76,6 +76,10 @@ class SessionAuthenticationTests(TestCase):
             response["Content-Type"].split(";")[0],
             "application/json",
         )
+        self.assertEqual(
+            response.json(),
+            {"detail": "CSRF validation failed."},
+        )
 
         # CSRF failure must not accidentally authenticate the user.
         self.assertNotIn(
@@ -272,4 +276,35 @@ class SessionAuthenticationTests(TestCase):
         self.assertEqual(
             response.status_code,
             status.HTTP_200_OK,
+        )
+
+    def test_login_rejects_untrusted_origin_without_creating_session(self) -> None:
+        csrf_token = self._bootstrap_csrf()
+
+        response = self.client.post(
+            LOGIN_PATH,
+            {
+                "username": self.username,
+                "password": self.password,
+            },
+            format="json",
+            HTTP_ORIGIN="https://example.invalid",
+            HTTP_X_CSRFTOKEN=csrf_token,
+        )
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_403_FORBIDDEN,
+        )
+        self.assertEqual(
+            response["Content-Type"].split(";")[0],
+            "application/json",
+        )
+        self.assertEqual(
+            response.json(),
+            {"detail": "CSRF validation failed."},
+        )
+        self.assertNotIn(
+            settings.SESSION_COOKIE_NAME,
+            self.client.cookies,
         )

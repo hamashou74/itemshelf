@@ -2,7 +2,7 @@ from django.contrib.auth import login as auth_login
 from django.contrib.auth import logout as auth_logout
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import never_cache
-from django.views.decorators.csrf import ensure_csrf_cookie
+from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie
 from django.views.decorators.debug import sensitive_post_parameters, sensitive_variables
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiResponse, extend_schema
@@ -13,7 +13,6 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .authentication import CsrfRequiredSessionAuthentication
 from .openapi import AUTH_TAG, CSRF_HEADER_PARAMETER
 from .serializers import (
     CurrentUserSerializer,
@@ -45,11 +44,11 @@ class CsrfView(APIView):
 
 
 @method_decorator(
-    [sensitive_post_parameters(), never_cache],
+    [csrf_protect, sensitive_post_parameters(), never_cache],
     name="dispatch",
 )
 class LoginView(APIView):
-    authentication_classes = (CsrfRequiredSessionAuthentication,)
+    authentication_classes = ()
     permission_classes = (AllowAny,)
     parser_classes = (JSONParser,)
 
@@ -78,14 +77,13 @@ class LoginView(APIView):
     )
     @sensitive_variables()
     def post(self, request: Request) -> Response:
-        _request = request._request
         serializer = LoginSerializer(
             data=request.data,
-            context={"request": _request},
+            context={"request": request},
         )
         serializer.is_valid(raise_exception=True)
 
-        auth_login(_request, serializer.validated_data["user"])
+        auth_login(request, serializer.validated_data["user"])
 
         return Response(status=status.HTTP_200_OK)
 
@@ -106,8 +104,7 @@ class LogoutView(APIView):
         },
     )
     def post(self, request: Request) -> Response:
-        _request = request._request
-        auth_logout(_request)
+        auth_logout(request)
 
         return Response(status=status.HTTP_200_OK)
 

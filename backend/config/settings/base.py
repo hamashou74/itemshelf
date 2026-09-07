@@ -30,6 +30,7 @@ CSRF_TRUSTED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
 ]
+CSRF_FAILURE_VIEW = "config.views.csrf_failure"
 
 # Application definition
 
