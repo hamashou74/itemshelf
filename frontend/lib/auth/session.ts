@@ -1,88 +1,82 @@
 import "server-only";
 
-import { sealData, unsealData } from "iron-session";
+import { getIronSession, type SessionOptions } from "iron-session";
 import { cookies } from "next/headers";
+import { z } from "zod";
 
 import { getSessionSecret } from "@/config/session";
 
 export const SESSION_COOKIE_NAME = "itemshelf_session";
 
-type Session = {
-  sessionId: string;
-  maxAge?: number;
+const SessionInputSchema = z.object({
+  sessionId: z.string().min(1),
+  maxAge: z.int().positive().optional(),
+});
+
+const SessionDataSchema = z.object({
+  sessionId: z.string().min(1),
+  expiresAt: z.int().nullable(),
+});
+
+type SessionInput = z.infer<typeof SessionInputSchema>;
+type SessionData = {
+  sessionId?: string;
+  expiresAt?: number | null;
 };
 
-type SessionPayload = {
-  sessionId: string;
-  expiresAt: number | null;
-};
+function getSessionOptions(maxAge?: number): SessionOptions {
+  return {
+    password: getSessionSecret(),
+    cookieName: SESSION_COOKIE_NAME,
+    ttl: 0,
+    cookieOptions: {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+      maxAge,
+    },
+  };
+}
 
-function isSessionPayload(value: unknown): value is SessionPayload {
-  if (typeof value !== "object" || value === null) {
-    return false;
-  }
-
-  const payload = value as Record<string, unknown>;
-
-  return (
-    typeof payload.sessionId === "string" &&
-    payload.sessionId !== "" &&
-    (payload.expiresAt === null ||
-      (typeof payload.expiresAt === "number" &&
-        Number.isSafeInteger(payload.expiresAt)))
-  );
+async function getSession() {
+  return getIronSession<SessionData>(await cookies(), getSessionOptions());
 }
 
 export async function getSessionId(): Promise<string | null> {
-  const cookieStore = await cookies();
-  const sealedSession = cookieStore.get(SESSION_COOKIE_NAME)?.value;
+  const session = await getSession();
+  const parsedSession = SessionDataSchema.safeParse(session);
 
-  if (sealedSession === undefined) {
+  if (!parsedSession.success) {
     return null;
   }
 
-  const payload = await unsealData<unknown>(sealedSession, {
-    password: getSessionSecret(),
-    ttl: 0,
-  });
-
-  if (!isSessionPayload(payload)) {
+  if (
+    parsedSession.data.expiresAt !== null &&
+    parsedSession.data.expiresAt <= Date.now()
+  ) {
     return null;
   }
 
-  if (payload.expiresAt !== null && payload.expiresAt <= Date.now()) {
-    return null;
-  }
-
-  return payload.sessionId;
+  return parsedSession.data.sessionId;
 }
 
-export async function setSession(session: Session): Promise<void> {
-  const expiresAt =
-    session.maxAge === undefined ? null : Date.now() + session.maxAge * 1000;
-  const sealedSession = await sealData(
-    {
-      sessionId: session.sessionId,
-      expiresAt,
-    } satisfies SessionPayload,
-    {
-      password: getSessionSecret(),
-      ttl: 0,
-    },
-  );
-  const cookieStore = await cookies();
+export async function setSession(value: SessionInput): Promise<void> {
+  const sessionInput = SessionInputSchema.parse(value);
+  const session = await getSession();
 
-  cookieStore.set(SESSION_COOKIE_NAME, sealedSession, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    path: "/",
-    ...(session.maxAge === undefined ? {} : { maxAge: session.maxAge }),
-  });
+  session.sessionId = sessionInput.sessionId;
+  session.expiresAt =
+    sessionInput.maxAge === undefined
+      ? null
+      : Date.now() + sessionInput.maxAge * 1000;
+  session.updateConfig(getSessionOptions(sessionInput.maxAge));
+
+  await session.save();
 }
 
 export async function clearSession(): Promise<void> {
-  const cookieStore = await cookies();
+  const session = await getSession();
 
-  cookieStore.delete(SESSION_COOKIE_NAME);
+  session.destroy();
 }
