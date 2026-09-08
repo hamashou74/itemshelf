@@ -8,6 +8,7 @@ import {
 const mocks = vi.hoisted(() => ({
   login: vi.fn(),
   logout: vi.fn(),
+  parseLoginCredentials: vi.fn(),
   getSessionId: vi.fn(),
   setSession: vi.fn(),
   clearSession: vi.fn(),
@@ -17,6 +18,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock("@/lib/backend/auth", () => ({
   login: mocks.login,
   logout: mocks.logout,
+  parseLoginCredentials: mocks.parseLoginCredentials,
 }));
 
 vi.mock("@/lib/auth/session", () => ({
@@ -42,6 +44,10 @@ function loginFormData() {
 describe("auth actions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.parseLoginCredentials.mockReturnValue({
+      username: "alice",
+      password: "password",
+    });
   });
 
   it("creates the frontend session and redirects after Django login", async () => {
@@ -74,6 +80,8 @@ describe("auth actions", () => {
   });
 
   it("rejects malformed action input before calling Django", async () => {
+    mocks.parseLoginCredentials.mockReturnValue(null);
+
     await expect(
       loginAction(INITIAL_LOGIN_ACTION_STATE, new FormData()),
     ).resolves.toEqual({

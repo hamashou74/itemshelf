@@ -5,7 +5,7 @@ import { server } from "@/test/msw/server";
 
 vi.mock("server-only", () => ({}));
 
-import { login, logout } from "./auth";
+import { login, logout, parseLoginCredentials } from "./auth";
 
 const credentials = {
   username: "alice",
@@ -23,6 +23,21 @@ function expectRequestCookie(
 
   expect(cookies).toContain(`${name}=${value}`);
 }
+
+describe("auth contract", () => {
+  it("parses valid login credentials with the generated Django schema", () => {
+    expect(parseLoginCredentials(credentials)).toEqual(credentials);
+  });
+
+  it("rejects malformed login credentials", () => {
+    expect(
+      parseLoginCredentials({
+        username: null,
+        password: "password",
+      }),
+    ).toBeNull();
+  });
+});
 
 describe("auth transport", () => {
   it("bootstraps CSRF and captures the Django session on login", async () => {

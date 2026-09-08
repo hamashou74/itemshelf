@@ -1,8 +1,8 @@
 import { HttpResponse, http } from "msw";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { getAuthMeRetrieveResponseMock } from "@/lib/api/generated/client/auth/auth.faker";
-import { getAuthMeRetrieveMockHandler } from "@/lib/api/generated/client/auth/auth.msw";
+import { getAuthMeRetrieveResponseMock } from "@/lib/backend/generated/client/auth/auth.faker";
+import { getAuthMeRetrieveMockHandler } from "@/lib/backend/generated/client/auth/auth.msw";
 import { server } from "@/test/msw/server";
 
 const mocks = vi.hoisted(() => ({

@@ -6,9 +6,8 @@ import type {
   LoginActionState,
   LogoutActionState,
 } from "@/features/auth/types";
-import { LoginRequest as LoginRequestSchema } from "@/lib/api/generated/validation/schemas";
 import { clearSession, getSessionId, setSession } from "@/lib/auth/session";
-import { login, logout } from "@/lib/backend/auth";
+import { login, logout, parseLoginCredentials } from "@/lib/backend/auth";
 
 const LOGIN_ERROR_MESSAGES = {
   "invalid-credentials": "ユーザー名またはパスワードが正しくありません。",
@@ -22,18 +21,18 @@ export async function loginAction(
 ): Promise<LoginActionState> {
   void previousState;
 
-  const parsedCredentials = LoginRequestSchema.safeParse({
+  const parsedCredentials = parseLoginCredentials({
     username: formData.get("username"),
     password: formData.get("password"),
   });
 
-  if (!parsedCredentials.success) {
+  if (parsedCredentials === null) {
     return {
       errorMessage: "ユーザー名とパスワードを入力してください。",
     };
   }
 
-  const result = await login(parsedCredentials.data);
+  const result = await login(parsedCredentials);
 
   if (!result.ok) {
     return {
