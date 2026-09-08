@@ -1,6 +1,6 @@
 import type { NextConfig } from "next";
 
-import { getBackendApiOrigin } from "./config/api/server";
+import { getBackendApiOrigin } from "./config/backend";
 
 const nextConfig: NextConfig = {
   async rewrites() {

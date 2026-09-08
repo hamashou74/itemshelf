@@ -1,4 +1,4 @@
-import { requireCurrentUser } from "@/features/auth/api/server";
+import { requireCurrentUser } from "@/features/auth/queries";
 
 export default async function NotFound() {
   await requireCurrentUser();
