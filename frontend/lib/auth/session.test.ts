@@ -70,6 +70,17 @@ describe("session", () => {
     delete process.env.SESSION_SECRET;
   });
 
+  it("requires an explicit session secret", async () => {
+    delete process.env.SESSION_SECRET;
+
+    await expect(
+      setSession({
+        sessionId: "backend-session",
+      }),
+    ).rejects.toThrow("SESSION_SECRET must be at least 32 characters.");
+    expect(mocks.set).not.toHaveBeenCalled();
+  });
+
   it("stores the Django session id only inside an encrypted frontend cookie", async () => {
     await setSession({
       sessionId: "backend-session",
