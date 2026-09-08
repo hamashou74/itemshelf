@@ -7,11 +7,7 @@ import type {
   LogoutActionState,
 } from "@/features/auth/types";
 import { clearSession, getSessionId, setSession } from "@/lib/auth/session";
-import {
-  login,
-  logout,
-  parseLoginCredentials,
-} from "@/lib/backend/auth";
+import { login, logout, parseLoginCredentials } from "@/lib/backend/auth";
 
 const LOGIN_ERROR_MESSAGES = {
   "invalid-credentials": "ユーザー名またはパスワードが正しくありません。",
