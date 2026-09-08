@@ -7,7 +7,7 @@ from django.views.decorators.debug import sensitive_post_parameters, sensitive_v
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiResponse, extend_schema, extend_schema_view
 from rest_framework import status
-from rest_framework.generics import RetrieveAPIView
+from rest_framework.generics import GenericAPIView, RetrieveAPIView
 from rest_framework.parsers import JSONParser
 from rest_framework.permissions import AllowAny
 from rest_framework.request import Request
@@ -48,10 +48,11 @@ class CsrfView(APIView):
     [csrf_protect, sensitive_post_parameters(), never_cache],
     name="dispatch",
 )
-class LoginView(APIView):
+class LoginView(GenericAPIView):
     authentication_classes = ()
     permission_classes = (AllowAny,)
     parser_classes = (JSONParser,)
+    serializer_class = LoginSerializer
 
     @extend_schema(
         tags=[AUTH_TAG],
@@ -78,10 +79,7 @@ class LoginView(APIView):
     )
     @sensitive_variables()
     def post(self, request: Request) -> Response:
-        serializer = LoginSerializer(
-            data=request.data,
-            context={"request": request},
-        )
+        serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
         auth_login(request, serializer.validated_data["user"])
