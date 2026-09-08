@@ -1,5 +1,6 @@
 // @vitest-environment node
 
+import { getIronSession } from "iron-session";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
@@ -117,6 +118,33 @@ describe("session", () => {
     };
 
     await expect(getSessionId()).resolves.toBeNull();
+  });
+
+  it("rejects unexpected persisted fields and replaces them on the next save", async () => {
+    const cookieStore = await mocks.cookies();
+    const existingSession = await getIronSession<{
+      sessionId?: string;
+      expiresAt?: number | null;
+      unexpected?: string;
+    }>(cookieStore, {
+      password: SESSION_SECRET,
+      cookieName: SESSION_COOKIE_NAME,
+      ttl: 0,
+      cookieOptions: { maxAge: undefined },
+    });
+
+    existingSession.sessionId = "backend-session";
+    existingSession.expiresAt = null;
+    existingSession.unexpected = "legacy-data";
+    await existingSession.save();
+
+    await expect(getSessionId()).resolves.toBeNull();
+
+    await setSession({
+      sessionId: "replacement-session",
+    });
+
+    await expect(getSessionId()).resolves.toBe("replacement-session");
   });
 
   it("rejects an encrypted frontend session after its backend expiry", async () => {
