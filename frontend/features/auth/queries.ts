@@ -2,22 +2,19 @@ import "server-only";
 
 import { cache } from "react";
 
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
-import { AUTH_TRANSPORT } from "@/lib/api/auth-transport";
-import { getBackendCurrentUser } from "@/lib/backend/auth";
+import { getSessionId } from "@/lib/auth/session";
+import { fetchCurrentUser } from "@/lib/backend/auth";
 
 export const getCurrentUser = cache(async () => {
-  const cookieStore = await cookies();
+  const sessionId = await getSessionId();
 
-  const sessionCookie = cookieStore.get(AUTH_TRANSPORT.session.cookieName);
-
-  if (sessionCookie === undefined) {
+  if (sessionId === null) {
     return null;
   }
 
-  return getBackendCurrentUser(sessionCookie.value);
+  return fetchCurrentUser(sessionId);
 });
 
 export async function requireCurrentUser() {

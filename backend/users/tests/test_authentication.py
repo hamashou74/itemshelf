@@ -259,7 +259,26 @@ class SessionAuthenticationTests(TestCase):
             status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
         )
 
-    def test_login_accepts_trusted_frontend_origin(self) -> None:
+    def test_login_accepts_backend_same_origin(self) -> None:
+        csrf_token = self._bootstrap_csrf()
+
+        response = self.client.post(
+            LOGIN_PATH,
+            {
+                "username": self.username,
+                "password": self.password,
+            },
+            format="json",
+            HTTP_ORIGIN="http://testserver",
+            HTTP_X_CSRFTOKEN=csrf_token,
+        )
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_200_OK,
+        )
+
+    def test_login_rejects_frontend_origin_without_creating_session(self) -> None:
         csrf_token = self._bootstrap_csrf()
 
         response = self.client.post(
@@ -270,25 +289,6 @@ class SessionAuthenticationTests(TestCase):
             },
             format="json",
             HTTP_ORIGIN="http://localhost:3000",
-            HTTP_X_CSRFTOKEN=csrf_token,
-        )
-
-        self.assertEqual(
-            response.status_code,
-            status.HTTP_200_OK,
-        )
-
-    def test_login_rejects_untrusted_origin_without_creating_session(self) -> None:
-        csrf_token = self._bootstrap_csrf()
-
-        response = self.client.post(
-            LOGIN_PATH,
-            {
-                "username": self.username,
-                "password": self.password,
-            },
-            format="json",
-            HTTP_ORIGIN="https://example.invalid",
             HTTP_X_CSRFTOKEN=csrf_token,
         )
 

@@ -6,7 +6,7 @@ import { getAuthMeRetrieveMockHandler } from "@/lib/api/generated/client/auth/au
 import { server } from "@/test/msw/server";
 
 const mocks = vi.hoisted(() => ({
-  cookies: vi.fn(),
+  getSessionId: vi.fn(),
   redirect: vi.fn(),
 }));
 
@@ -21,8 +21,8 @@ vi.mock("react", async (importOriginal) => {
   };
 });
 
-vi.mock("next/headers", () => ({
-  cookies: mocks.cookies,
+vi.mock("@/lib/auth/session", () => ({
+  getSessionId: mocks.getSessionId,
 }));
 
 vi.mock("next/navigation", () => ({
@@ -31,29 +31,15 @@ vi.mock("next/navigation", () => ({
 
 import { getCurrentUser } from "./queries";
 
-function setSessionCookie(value = "test-session") {
-  mocks.cookies.mockResolvedValue({
-    get: (name: string) =>
-      name === "sessionid"
-        ? {
-            name: "sessionid",
-            value,
-          }
-        : undefined,
-  });
-}
-
 describe("getCurrentUser", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it("does not call the backend when the session cookie is missing", async () => {
+  it("does not call Django when the frontend session is missing", async () => {
     let requested = false;
 
-    mocks.cookies.mockResolvedValue({
-      get: () => undefined,
-    });
+    mocks.getSessionId.mockResolvedValue(null);
 
     server.use(
       http.get("*/api/auth/me", () => {
@@ -70,8 +56,8 @@ describe("getCurrentUser", () => {
     expect(requested).toBe(false);
   });
 
-  it("returns a generated current-user fixture", async () => {
-    setSessionCookie();
+  it("forwards the decrypted Django session id", async () => {
+    mocks.getSessionId.mockResolvedValue("test-session");
 
     const currentUser = getAuthMeRetrieveResponseMock();
 
@@ -86,8 +72,8 @@ describe("getCurrentUser", () => {
     await expect(getCurrentUser()).resolves.toEqual(currentUser);
   });
 
-  it("returns null for an unauthenticated response", async () => {
-    setSessionCookie();
+  it("returns null for an unauthenticated Django response", async () => {
+    mocks.getSessionId.mockResolvedValue("test-session");
 
     server.use(
       http.get("*/api/auth/me", () =>
@@ -106,7 +92,7 @@ describe("getCurrentUser", () => {
   });
 
   it("rejects a malformed current-user response", async () => {
-    setSessionCookie();
+    mocks.getSessionId.mockResolvedValue("test-session");
 
     server.use(
       http.get("*/api/auth/me", () =>
@@ -119,8 +105,8 @@ describe("getCurrentUser", () => {
     await expect(getCurrentUser()).rejects.toThrow();
   });
 
-  it("does not hide backend failures as unauthenticated", async () => {
-    setSessionCookie();
+  it("does not hide Django failures as unauthenticated", async () => {
+    mocks.getSessionId.mockResolvedValue("test-session");
 
     server.use(
       http.get("*/api/auth/me", () =>
