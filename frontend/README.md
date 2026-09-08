@@ -15,12 +15,17 @@
 
 ## Environment Variables
 
-NEXT_PUBLIC_API_TIMEOUT_MS
 API_TIMEOUT_MS
 BACKEND_API_ORIGIN
 SESSION_SECRET
 
 `SESSION_SECRET` は Next.js が browser-facing session cookie を暗号化・検証するための server-only secret。32文字以上のランダムな値を使用し、公開しない。未設定または32文字未満の場合は起動時の利用箇所でエラーになる。
+
+## Backend Access Boundary
+
+Browser code does not call Django/DRF directly. Browser-facing interactions go through the Next.js application boundary. Server Components and Server Actions call Django through server-only modules under `lib/backend`.
+
+Add a Route Handler only when a concrete browser-facing HTTP endpoint is required; do not add a generic pass-through proxy to Django.
 
 ## API Client Generation
 

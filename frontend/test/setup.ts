@@ -4,15 +4,6 @@ import { server } from "./msw/server";
 
 process.env.BACKEND_API_ORIGIN = "http://127.0.0.1:8000";
 process.env.API_TIMEOUT_MS = "10000";
-process.env.NEXT_PUBLIC_API_TIMEOUT_MS = "10000";
-
-function clearCookie(name: string) {
-  if (typeof document === "undefined") {
-    return;
-  }
-
-  document.cookie = `${name}=; Max-Age=0; Path=/`;
-}
 
 beforeAll(() => {
   server.listen({
@@ -22,9 +13,6 @@ beforeAll(() => {
 
 afterEach(() => {
   server.resetHandlers();
-
-  clearCookie("csrftoken");
-  clearCookie("sessionid");
 });
 
 afterAll(() => {
