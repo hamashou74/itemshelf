@@ -2,12 +2,12 @@
 
 import { useActionState } from "react";
 
-import { logout } from "@/features/auth/actions";
+import { logoutAction } from "@/features/auth/actions";
 import { INITIAL_LOGOUT_ACTION_STATE } from "@/features/auth/types";
 
 export function LogoutButton() {
   const [state, formAction, isPending] = useActionState(
-    logout,
+    logoutAction,
     INITIAL_LOGOUT_ACTION_STATE,
   );
 

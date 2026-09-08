@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { getAuthMeRetrieveResponseMock } from "@/lib/api/generated/client/auth/auth.faker";
 import { getAuthMeRetrieveMockHandler } from "@/lib/api/generated/client/auth/auth.msw";
-import { WEB_SESSION_COOKIE_NAME } from "@/lib/auth/session";
+import { SESSION_COOKIE_NAME } from "@/lib/auth/session";
 import { server } from "@/test/msw/server";
 
 const mocks = vi.hoisted(() => ({
@@ -35,9 +35,9 @@ import { getCurrentUser } from "./queries";
 function setSessionCookie(value = "test-session") {
   mocks.cookies.mockResolvedValue({
     get: (name: string) =>
-      name === WEB_SESSION_COOKIE_NAME
+      name === SESSION_COOKIE_NAME
         ? {
-            name: WEB_SESSION_COOKIE_NAME,
+            name: SESSION_COOKIE_NAME,
             value,
           }
         : undefined,
@@ -49,7 +49,7 @@ describe("getCurrentUser", () => {
     vi.clearAllMocks();
   });
 
-  it("does not call the backend when the web session cookie is missing", async () => {
+  it("does not call Django when the session cookie is missing", async () => {
     let requested = false;
 
     mocks.cookies.mockResolvedValue({
@@ -71,7 +71,7 @@ describe("getCurrentUser", () => {
     expect(requested).toBe(false);
   });
 
-  it("forwards the backend session id from the web session cookie", async () => {
+  it("forwards the Django session id from the session cookie", async () => {
     setSessionCookie();
 
     const currentUser = getAuthMeRetrieveResponseMock();
@@ -87,7 +87,7 @@ describe("getCurrentUser", () => {
     await expect(getCurrentUser()).resolves.toEqual(currentUser);
   });
 
-  it("returns null for an unauthenticated backend response", async () => {
+  it("returns null for an unauthenticated Django response", async () => {
     setSessionCookie();
 
     server.use(
@@ -120,7 +120,7 @@ describe("getCurrentUser", () => {
     await expect(getCurrentUser()).rejects.toThrow();
   });
 
-  it("does not hide backend failures as unauthenticated", async () => {
+  it("does not hide Django failures as unauthenticated", async () => {
     setSessionCookie();
 
     server.use(

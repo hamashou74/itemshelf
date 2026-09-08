@@ -2,12 +2,12 @@
 
 import { useActionState } from "react";
 
-import { login } from "@/features/auth/actions";
+import { loginAction } from "@/features/auth/actions";
 import { INITIAL_LOGIN_ACTION_STATE } from "@/features/auth/types";
 
 export function LoginForm() {
   const [state, formAction, isPending] = useActionState(
-    login,
+    loginAction,
     INITIAL_LOGIN_ACTION_STATE,
   );
 

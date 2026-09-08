@@ -14,13 +14,13 @@ vi.mock("next/headers", () => ({
 }));
 
 import {
-  clearWebSession,
-  getWebSessionId,
-  setWebSession,
-  WEB_SESSION_COOKIE_NAME,
+  clearSession,
+  getSessionId,
+  SESSION_COOKIE_NAME,
+  setSession,
 } from "./session";
 
-describe("web session", () => {
+describe("session", () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
@@ -36,18 +36,18 @@ describe("web session", () => {
       value: "backend-session",
     });
 
-    await expect(getWebSessionId()).resolves.toBe("backend-session");
-    expect(mocks.get).toHaveBeenCalledWith(WEB_SESSION_COOKIE_NAME);
+    await expect(getSessionId()).resolves.toBe("backend-session");
+    expect(mocks.get).toHaveBeenCalledWith(SESSION_COOKIE_NAME);
   });
 
   it("sets an HttpOnly SameSite=Lax session cookie", async () => {
-    await setWebSession({
+    await setSession({
       sessionId: "backend-session",
       maxAge: 1209600,
     });
 
     expect(mocks.set).toHaveBeenCalledWith(
-      WEB_SESSION_COOKIE_NAME,
+      SESSION_COOKIE_NAME,
       "backend-session",
       {
         httpOnly: true,
@@ -60,8 +60,8 @@ describe("web session", () => {
   });
 
   it("deletes the frontend-owned session cookie", async () => {
-    await clearWebSession();
+    await clearSession();
 
-    expect(mocks.delete).toHaveBeenCalledWith(WEB_SESSION_COOKIE_NAME);
+    expect(mocks.delete).toHaveBeenCalledWith(SESSION_COOKIE_NAME);
   });
 });

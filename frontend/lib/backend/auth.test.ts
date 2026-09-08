@@ -5,7 +5,7 @@ import { server } from "@/test/msw/server";
 
 vi.mock("server-only", () => ({}));
 
-import { loginBackend, logoutBackend } from "./auth";
+import { login, logout } from "./auth";
 
 const credentials = {
   username: "alice",
@@ -24,7 +24,7 @@ function expectRequestCookie(
   expect(cookies).toContain(`${name}=${value}`);
 }
 
-describe("backend auth transport", () => {
+describe("auth transport", () => {
   it("bootstraps CSRF and captures the Django session on login", async () => {
     server.use(
       http.get(
@@ -52,14 +52,14 @@ describe("backend auth transport", () => {
       }),
     );
 
-    await expect(loginBackend(credentials)).resolves.toEqual({
+    await expect(login(credentials)).resolves.toEqual({
       ok: true,
       sessionId: "test-session",
       maxAge: 1209600,
     });
   });
 
-  it("maps invalid credentials without creating a web session", async () => {
+  it("maps invalid credentials without creating a session", async () => {
     server.use(
       http.get(
         "*/api/auth/csrf",
@@ -81,7 +81,7 @@ describe("backend auth transport", () => {
       ),
     );
 
-    await expect(loginBackend(credentials)).resolves.toEqual({
+    await expect(login(credentials)).resolves.toEqual({
       ok: false,
       reason: "invalid-credentials",
     });
@@ -110,7 +110,7 @@ describe("backend auth transport", () => {
       }),
     );
 
-    await expect(logoutBackend("test-session")).resolves.toEqual({
+    await expect(logout("test-session")).resolves.toEqual({
       ok: true,
     });
   });

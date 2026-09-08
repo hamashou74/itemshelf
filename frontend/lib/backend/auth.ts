@@ -1,14 +1,15 @@
 import "server-only";
 
-import axios, { type AxiosResponse } from "axios";
+import axios, { AxiosHeaders, type AxiosResponse } from "axios";
+import { parseSetCookie } from "cookie";
 
 import { AUTH_TRANSPORT } from "@/lib/api/auth-transport";
 import { getAuth } from "@/lib/api/generated/client/auth/auth";
 import type { LoginRequest } from "@/lib/api/generated/models";
 import { CurrentUser as CurrentUserSchema } from "@/lib/api/generated/validation/schemas";
-import { createBackendHttpClient } from "@/lib/backend/http";
+import { createHttpClient } from "@/lib/backend/http";
 
-export type BackendLoginResult =
+export type LoginResult =
   | {
       ok: true;
       sessionId: string;
@@ -19,7 +20,7 @@ export type BackendLoginResult =
       reason: "invalid-credentials" | "security" | "unexpected";
     };
 
-export type BackendLogoutResult =
+export type LogoutResult =
   | {
       ok: true;
     }
@@ -28,74 +29,35 @@ export type BackendLogoutResult =
       reason: "unauthenticated" | "security" | "unexpected";
     };
 
-type ResponseCookie = {
-  value: string;
-  maxAge?: number;
-};
-
 function getSetCookieHeaders(response: AxiosResponse): string[] {
+  if (response.headers instanceof AxiosHeaders) {
+    return response.headers.getSetCookie();
+  }
+
   const setCookie = response.headers["set-cookie"];
 
   if (Array.isArray(setCookie)) {
-    return setCookie.filter(
-      (headerValue): headerValue is string => typeof headerValue === "string",
-    );
+    return setCookie;
   }
 
-  if (typeof setCookie === "string") {
-    return [setCookie];
-  }
-
-  return [];
+  return typeof setCookie === "string" ? [setCookie] : [];
 }
 
-function getResponseCookie(
-  response: AxiosResponse,
-  cookieName: string,
-): ResponseCookie | null {
-  for (const setCookie of getSetCookieHeaders(response)) {
-    const [cookiePair, ...attributes] = setCookie.split(";");
-    const separatorIndex = cookiePair.indexOf("=");
+function findResponseCookie(response: AxiosResponse, cookieName: string) {
+  for (const header of getSetCookieHeaders(response)) {
+    const responseCookie = parseSetCookie(header);
 
-    if (separatorIndex === -1) {
-      continue;
+    if (responseCookie.name === cookieName) {
+      return responseCookie;
     }
-
-    const name = cookiePair.slice(0, separatorIndex).trim();
-
-    if (name !== cookieName) {
-      continue;
-    }
-
-    const value = cookiePair.slice(separatorIndex + 1).trim();
-    let maxAge: number | undefined;
-
-    for (const attribute of attributes) {
-      const [attributeName, attributeValue] = attribute.trim().split("=", 2);
-
-      if (attributeName.toLowerCase() !== "max-age") {
-        continue;
-      }
-
-      const parsedMaxAge = Number(attributeValue);
-
-      if (Number.isSafeInteger(parsedMaxAge) && parsedMaxAge >= 0) {
-        maxAge = parsedMaxAge;
-      }
-    }
-
-    return {
-      value,
-      ...(maxAge === undefined ? {} : { maxAge }),
-    };
   }
 
   return null;
 }
 
-async function getBackendCsrfToken(sessionId?: string): Promise<string> {
-  const generatedAuthApi = getAuth(
-    createBackendHttpClient(
+async function fetchCsrfToken(sessionId?: string): Promise<string> {
+  const authApi = getAuth(
+    createHttpClient(
       sessionId === undefined
         ? undefined
         : {
@@ -104,37 +66,43 @@ async function getBackendCsrfToken(sessionId?: string): Promise<string> {
     ),
   );
 
-  const response = await generatedAuthApi.authCsrfRetrieve();
-  const csrfCookie = getResponseCookie(
+  const response = await authApi.authCsrfRetrieve();
+  const csrfCookie = findResponseCookie(
     response,
     AUTH_TRANSPORT.csrf.cookieName,
   );
 
-  if (csrfCookie === null || csrfCookie.value === "") {
-    throw new Error("Backend did not return the expected CSRF cookie.");
+  if (
+    csrfCookie === null ||
+    csrfCookie.value === undefined ||
+    csrfCookie.value === ""
+  ) {
+    throw new Error("Django did not return the expected CSRF cookie.");
   }
 
   return csrfCookie.value;
 }
 
-export async function loginBackend(
-  credentials: LoginRequest,
-): Promise<BackendLoginResult> {
+export async function login(credentials: LoginRequest): Promise<LoginResult> {
   try {
-    const csrfToken = await getBackendCsrfToken();
-    const generatedAuthApi = getAuth(
-      createBackendHttpClient({
+    const csrfToken = await fetchCsrfToken();
+    const authApi = getAuth(
+      createHttpClient({
         csrfToken,
       }),
     );
 
-    const response = await generatedAuthApi.authLoginCreate(credentials);
-    const sessionCookie = getResponseCookie(
+    const response = await authApi.authLoginCreate(credentials);
+    const sessionCookie = findResponseCookie(
       response,
       AUTH_TRANSPORT.session.cookieName,
     );
 
-    if (sessionCookie === null || sessionCookie.value === "") {
+    if (
+      sessionCookie === null ||
+      sessionCookie.value === undefined ||
+      sessionCookie.value === ""
+    ) {
       return {
         ok: false,
         reason: "unexpected",
@@ -178,19 +146,17 @@ export async function loginBackend(
   }
 }
 
-export async function logoutBackend(
-  sessionId: string,
-): Promise<BackendLogoutResult> {
+export async function logout(sessionId: string): Promise<LogoutResult> {
   try {
-    const csrfToken = await getBackendCsrfToken(sessionId);
-    const generatedAuthApi = getAuth(
-      createBackendHttpClient({
+    const csrfToken = await fetchCsrfToken(sessionId);
+    const authApi = getAuth(
+      createHttpClient({
         sessionId,
         csrfToken,
       }),
     );
 
-    await generatedAuthApi.authLogoutCreate();
+    await authApi.authLogoutCreate();
 
     return {
       ok: true,
@@ -198,7 +164,7 @@ export async function logoutBackend(
   } catch (error) {
     if (axios.isAxiosError(error) && error.response?.status === 403) {
       try {
-        const currentUser = await getBackendCurrentUser(sessionId);
+        const currentUser = await fetchCurrentUser(sessionId);
 
         if (currentUser === null) {
           return {
@@ -226,15 +192,15 @@ export async function logoutBackend(
   }
 }
 
-export async function getBackendCurrentUser(sessionId: string) {
-  const generatedAuthApi = getAuth(
-    createBackendHttpClient({
+export async function fetchCurrentUser(sessionId: string) {
+  const authApi = getAuth(
+    createHttpClient({
       sessionId,
     }),
   );
 
   try {
-    const response = await generatedAuthApi.authMeRetrieve();
+    const response = await authApi.authMeRetrieve();
 
     return CurrentUserSchema.parse(response.data);
   } catch (error) {

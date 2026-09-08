@@ -2,11 +2,11 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
-import { createBackendHttpClient } from "./http";
+import { createHttpClient } from "./http";
 
-describe("createBackendHttpClient", () => {
+describe("createHttpClient", () => {
   it("sets the Django session cookie for authenticated requests", () => {
-    const client = createBackendHttpClient({
+    const client = createHttpClient({
       sessionId: "test-session",
     });
 
@@ -14,7 +14,7 @@ describe("createBackendHttpClient", () => {
   });
 
   it("sets the Django CSRF cookie, header, and same-origin Origin", () => {
-    const client = createBackendHttpClient({
+    const client = createHttpClient({
       sessionId: "test-session",
       csrfToken: "test-csrf",
     });

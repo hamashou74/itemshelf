@@ -5,14 +5,12 @@ import axios, { type AxiosInstance } from "axios";
 import { getApiTimeoutMs, getBackendApiOrigin } from "@/config/backend";
 import { AUTH_TRANSPORT } from "@/lib/api/auth-transport";
 
-type BackendAuthContext = {
+type AuthContext = {
   sessionId?: string;
   csrfToken?: string;
 };
 
-export function createBackendHttpClient(
-  auth: BackendAuthContext = {},
-): AxiosInstance {
+export function createHttpClient(auth: AuthContext = {}): AxiosInstance {
   const cookieValues: string[] = [];
   const headers: Record<string, string> = {};
 

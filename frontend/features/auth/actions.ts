@@ -2,23 +2,13 @@
 
 import { redirect } from "next/navigation";
 
-import { z } from "zod";
-
 import type {
   LoginActionState,
   LogoutActionState,
 } from "@/features/auth/types";
-import { loginBackend, logoutBackend } from "@/lib/backend/auth";
-import {
-  clearWebSession,
-  getWebSessionId,
-  setWebSession,
-} from "@/lib/auth/session";
-
-const LOGIN_FORM_SCHEMA = z.object({
-  username: z.string().min(1),
-  password: z.string().min(1),
-});
+import { LoginRequest as LoginRequestSchema } from "@/lib/api/generated/validation/schemas";
+import { clearSession, getSessionId, setSession } from "@/lib/auth/session";
+import { login, logout } from "@/lib/backend/auth";
 
 const LOGIN_ERROR_MESSAGES = {
   "invalid-credentials": "ユーザー名またはパスワードが正しくありません。",
@@ -26,13 +16,13 @@ const LOGIN_ERROR_MESSAGES = {
   unexpected: "ログインに失敗しました。もう一度お試しください。",
 } as const;
 
-export async function login(
+export async function loginAction(
   previousState: LoginActionState,
   formData: FormData,
 ): Promise<LoginActionState> {
   void previousState;
 
-  const parsedCredentials = LOGIN_FORM_SCHEMA.safeParse({
+  const parsedCredentials = LoginRequestSchema.safeParse({
     username: formData.get("username"),
     password: formData.get("password"),
   });
@@ -43,7 +33,7 @@ export async function login(
     };
   }
 
-  const result = await loginBackend(parsedCredentials.data);
+  const result = await login(parsedCredentials.data);
 
   if (!result.ok) {
     return {
@@ -51,7 +41,7 @@ export async function login(
     };
   }
 
-  await setWebSession({
+  await setSession({
     sessionId: result.sessionId,
     ...(result.maxAge === undefined ? {} : { maxAge: result.maxAge }),
   });
@@ -59,21 +49,21 @@ export async function login(
   redirect("/home");
 }
 
-export async function logout(
+export async function logoutAction(
   previousState: LogoutActionState,
 ): Promise<LogoutActionState> {
   void previousState;
 
-  const sessionId = await getWebSessionId();
+  const sessionId = await getSessionId();
 
   if (sessionId === null) {
     redirect("/login");
   }
 
-  const result = await logoutBackend(sessionId);
+  const result = await logout(sessionId);
 
   if (result.ok || result.reason === "unauthenticated") {
-    await clearWebSession();
+    await clearSession();
     redirect("/login");
   }
 

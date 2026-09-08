@@ -4,17 +4,17 @@ import { cache } from "react";
 
 import { redirect } from "next/navigation";
 
-import { getWebSessionId } from "@/lib/auth/session";
-import { getBackendCurrentUser } from "@/lib/backend/auth";
+import { getSessionId } from "@/lib/auth/session";
+import { fetchCurrentUser } from "@/lib/backend/auth";
 
 export const getCurrentUser = cache(async () => {
-  const sessionId = await getWebSessionId();
+  const sessionId = await getSessionId();
 
   if (sessionId === null) {
     return null;
   }
 
-  return getBackendCurrentUser(sessionId);
+  return fetchCurrentUser(sessionId);
 });
 
 export async function requireCurrentUser() {
