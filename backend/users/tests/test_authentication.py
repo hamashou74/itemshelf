@@ -55,6 +55,11 @@ class SessionAuthenticationTests(TestCase):
 
         return response
 
+    def test_auth_transport_settings_are_explicit(self) -> None:
+        self.assertEqual(settings.SESSION_COOKIE_NAME, "sessionid")
+        self.assertEqual(settings.CSRF_COOKIE_NAME, "csrftoken")
+        self.assertEqual(settings.CSRF_HEADER_NAME, "HTTP_X_CSRFTOKEN")
+
     def test_csrf_endpoint_bootstraps_csrf_cookie(self) -> None:
         self._bootstrap_csrf()
 

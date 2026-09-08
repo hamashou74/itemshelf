@@ -1,3 +1,4 @@
+import { parseCookie } from "cookie";
 import { HttpResponse, http } from "msw";
 import { describe, expect, it, vi } from "vitest";
 
@@ -17,11 +18,9 @@ function expectRequestCookie(
   name: string,
   value: string,
 ): void {
-  const cookies = (request.headers.get("cookie") ?? "")
-    .split(";")
-    .map((cookie) => cookie.trim());
+  const cookies = parseCookie(request.headers.get("cookie") ?? "");
 
-  expect(cookies).toContain(`${name}=${value}`);
+  expect(cookies[name]).toBe(value);
 }
 
 describe("auth contract", () => {

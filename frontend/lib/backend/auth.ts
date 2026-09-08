@@ -1,9 +1,13 @@
 import "server-only";
 
-import axios, { AxiosHeaders, type AxiosResponse } from "axios";
+import axios, {
+  AxiosHeaders,
+  type AxiosResponse,
+  type RawAxiosHeaders,
+} from "axios";
 import { parseSetCookie } from "cookie";
 
-import { AUTH_TRANSPORT } from "@/lib/api/auth-transport";
+import { AUTH_TRANSPORT } from "@/lib/backend/auth-transport";
 import { getAuth } from "@/lib/backend/generated/client/auth/auth";
 import type { LoginRequest } from "@/lib/backend/generated/models";
 import {
@@ -43,13 +47,15 @@ function getSetCookieHeaders(response: AxiosResponse): string[] {
     return response.headers.getSetCookie();
   }
 
-  const setCookie = response.headers["set-cookie"];
+  const rawHeaders: RawAxiosHeaders = {};
 
-  if (Array.isArray(setCookie)) {
-    return setCookie;
+  for (const [name, value] of Object.entries(response.headers)) {
+    if (value !== undefined) {
+      rawHeaders[name] = value;
+    }
   }
 
-  return typeof setCookie === "string" ? [setCookie] : [];
+  return AxiosHeaders.from(rawHeaders).getSetCookie();
 }
 
 function findResponseCookie(response: AxiosResponse, cookieName: string) {
