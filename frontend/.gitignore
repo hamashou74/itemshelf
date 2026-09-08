@@ -41,4 +41,4 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-/lib/api/generated/
+/lib/backend/generated/

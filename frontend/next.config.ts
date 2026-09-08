@@ -1,18 +1,5 @@
 import type { NextConfig } from "next";
 
-import { getBackendApiOrigin } from "./config/api/server";
-
-const nextConfig: NextConfig = {
-  async rewrites() {
-    return {
-      beforeFiles: [
-        {
-          source: "/api/:path*",
-          destination: `${getBackendApiOrigin()}/api/:path*`,
-        },
-      ],
-    };
-  },
-};
+const nextConfig: NextConfig = {};
 
 export default nextConfig;

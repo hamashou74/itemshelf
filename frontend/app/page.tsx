@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 
-import { getCurrentUser } from "@/features/auth/api/server";
+import { getCurrentUser } from "@/features/auth/queries";
 
 export default async function RootPage() {
   const currentUser = await getCurrentUser();

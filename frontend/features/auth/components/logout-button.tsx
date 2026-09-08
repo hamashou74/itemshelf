@@ -1,60 +1,31 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useActionState } from "react";
 
-import { authApi } from "@/features/auth/api/browser";
+import { logoutAction } from "@/features/auth/actions";
+import { INITIAL_LOGOUT_ACTION_STATE } from "@/features/auth/types";
 
 export function LogoutButton() {
-  const router = useRouter();
-
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-
-  async function handleLogout() {
-    if (isSubmitting) {
-      return;
-    }
-
-    setIsSubmitting(true);
-    setErrorMessage(null);
-
-    const result = await authApi.logout();
-
-    if (result.ok) {
-      router.replace("/login");
-      return;
-    }
-
-    if (result.reason === "security") {
-      setErrorMessage(
-        "セキュリティ検証に失敗したため、ログアウトできませんでした。もう一度お試しください。",
-      );
-      router.refresh();
-    } else {
-      setErrorMessage("ログアウトに失敗しました。もう一度お試しください。");
-    }
-
-    setIsSubmitting(false);
-  }
+  const [state, formAction, isPending] = useActionState(
+    logoutAction,
+    INITIAL_LOGOUT_ACTION_STATE,
+  );
 
   return (
-    <div className="flex flex-col items-start gap-3">
+    <form className="flex flex-col items-start gap-3" action={formAction}>
       <button
-        type="button"
-        onClick={handleLogout}
-        disabled={isSubmitting}
+        type="submit"
+        disabled={isPending}
         className="rounded-md border border-black/20 px-4 py-2 font-medium disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/30"
       >
-        {isSubmitting ? "ログアウト中..." : "ログアウト"}
+        {isPending ? "ログアウト中..." : "ログアウト"}
       </button>
 
-      {errorMessage !== null && (
+      {state.errorMessage !== null && (
         <p role="alert" className="text-sm text-red-600 dark:text-red-400">
-          {errorMessage}
+          {state.errorMessage}
         </p>
       )}
-    </div>
+    </form>
   );
 }

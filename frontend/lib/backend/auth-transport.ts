@@ -1,3 +1,5 @@
+import "server-only";
+
 export const AUTH_TRANSPORT = {
   csrf: {
     cookieName: "csrftoken",

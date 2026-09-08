@@ -26,11 +26,10 @@ SECRET_KEY = "django-insecure-@4u$)j7u@dpa^j6ajmf)=_j_olp$-rr8%rcaq_7!97t_cf^p2r
 DEBUG = True
 
 ALLOWED_HOSTS: list[str] = []
-CSRF_TRUSTED_ORIGINS = [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-]
+CSRF_COOKIE_NAME = "csrftoken"
 CSRF_FAILURE_VIEW = "config.views.csrf_failure"
+CSRF_HEADER_NAME = "HTTP_X_CSRFTOKEN"
+SESSION_COOKIE_NAME = "sessionid"
 
 # Application definition
 
