@@ -29,7 +29,7 @@ vi.mock("next/navigation", () => ({
   redirect: mocks.redirect,
 }));
 
-import { getCurrentUser } from "./server";
+import { getCurrentUser } from "./queries";
 
 function setSessionCookie(value = "test-session") {
   mocks.cookies.mockResolvedValue({

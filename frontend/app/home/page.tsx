@@ -1,4 +1,4 @@
-import { requireCurrentUser } from "@/features/auth/api/server";
+import { requireCurrentUser } from "@/features/auth/queries";
 import { LogoutButton } from "@/features/auth/components/logout-button";
 
 export default async function HomePage() {
