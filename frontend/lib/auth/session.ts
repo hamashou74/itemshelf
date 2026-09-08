@@ -13,13 +13,16 @@ const SessionInputSchema = z.object({
   maxAge: z.int().positive().optional(),
 });
 
-const SessionDataSchema = z.object({
-  sessionId: z.string().min(1),
-  expiresAt: z.int().nullable(),
-});
+const SessionDataSchema = z
+  .object({
+    sessionId: z.string().min(1),
+    expiresAt: z.int().nullable(),
+  })
+  .strict();
 
 type SessionInput = z.infer<typeof SessionInputSchema>;
 type SessionData = {
+  [key: string]: unknown;
   sessionId?: string;
   expiresAt?: number | null;
 };
@@ -64,6 +67,10 @@ export async function getSessionId(): Promise<string | null> {
 export async function setSession(value: SessionInput): Promise<void> {
   const sessionInput = SessionInputSchema.parse(value);
   const session = await getSession();
+
+  for (const key of Object.keys(session)) {
+    delete session[key];
+  }
 
   session.sessionId = sessionInput.sessionId;
   session.expiresAt =
