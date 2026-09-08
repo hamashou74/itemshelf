@@ -3,7 +3,7 @@ import "server-only";
 import axios, { AxiosHeaders, type AxiosResponse } from "axios";
 import { parseSetCookie } from "cookie";
 
-import { AUTH_TRANSPORT } from "@/lib/api/auth-transport";
+import { AUTH_TRANSPORT } from "@/lib/backend/auth-transport";
 import { getAuth } from "@/lib/backend/generated/client/auth/auth";
 import type { LoginRequest } from "@/lib/backend/generated/models";
 import {
@@ -39,17 +39,7 @@ export function parseLoginCredentials(value: unknown): LoginRequest | null {
 }
 
 function getSetCookieHeaders(response: AxiosResponse): string[] {
-  if (response.headers instanceof AxiosHeaders) {
-    return response.headers.getSetCookie();
-  }
-
-  const setCookie = response.headers["set-cookie"];
-
-  if (Array.isArray(setCookie)) {
-    return setCookie;
-  }
-
-  return typeof setCookie === "string" ? [setCookie] : [];
+  return AxiosHeaders.from(response.headers).getSetCookie();
 }
 
 function findResponseCookie(response: AxiosResponse, cookieName: string) {
