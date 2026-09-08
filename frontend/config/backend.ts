@@ -35,7 +35,11 @@ const ApiTimeoutMsSchema = z
   .trim()
   .min(1, { error: API_TIMEOUT_REQUIRED })
   .pipe(z.coerce.number({ error: API_TIMEOUT_INVALID }))
-  .pipe(z.int({ error: API_TIMEOUT_INVALID }).positive({ error: API_TIMEOUT_INVALID }));
+  .pipe(
+    z
+      .int({ error: API_TIMEOUT_INVALID })
+      .positive({ error: API_TIMEOUT_INVALID }),
+  );
 
 export function getBackendApiOrigin(): string {
   return BackendApiOriginSchema.parse(process.env.BACKEND_API_ORIGIN);
