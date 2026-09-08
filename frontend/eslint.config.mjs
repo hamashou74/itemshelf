@@ -3,6 +3,11 @@ import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
 import prettier from "eslint-config-prettier/flat";
 
+const generatedBackendImportRegex =
+  "(?:^|/)(?:lib/)?backend/generated(?:/|$)";
+const generatedBackendNonMockImportRegex =
+  "(?:^|/)(?:lib/)?backend/generated(?:/|$)(?!.*\\.(?:msw|faker)$)";
+
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
@@ -16,9 +21,26 @@ const eslintConfig = defineConfig([
         {
           patterns: [
             {
-              regex: "^@/lib/backend/generated(?:/|$)",
+              regex: generatedBackendImportRegex,
               message:
                 "Import generated Django artifacts through server-only lib/backend modules.",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ["**/*.test.{ts,tsx}", "test/**/*.{js,jsx,mjs,cjs,ts,tsx}"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              regex: generatedBackendNonMockImportRegex,
+              message:
+                "Tests may import generated Django artifacts directly only for MSW and Faker helpers.",
             },
           ],
         },
