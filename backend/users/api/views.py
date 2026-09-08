@@ -5,8 +5,9 @@ from django.views.decorators.cache import never_cache
 from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie
 from django.views.decorators.debug import sensitive_post_parameters, sensitive_variables
 from drf_spectacular.types import OpenApiTypes
-from drf_spectacular.utils import OpenApiResponse, extend_schema
+from drf_spectacular.utils import OpenApiResponse, extend_schema, extend_schema_view
 from rest_framework import status
+from rest_framework.generics import RetrieveAPIView
 from rest_framework.parsers import JSONParser
 from rest_framework.permissions import AllowAny
 from rest_framework.request import Request
@@ -109,9 +110,8 @@ class LogoutView(APIView):
         return Response(status=status.HTTP_200_OK)
 
 
-@method_decorator(never_cache, name="dispatch")
-class CurrentUserView(APIView):
-    @extend_schema(
+@extend_schema_view(
+    get=extend_schema(
         tags=[AUTH_TAG],
         responses={
             status.HTTP_200_OK: CurrentUserSerializer,
@@ -121,7 +121,12 @@ class CurrentUserView(APIView):
             ),
         },
     )
-    def get(self, request: Request) -> Response:
-        serializer = CurrentUserSerializer(request.user)
+)
+@method_decorator(never_cache, name="dispatch")
+class CurrentUserView(RetrieveAPIView):
+    serializer_class = CurrentUserSerializer
 
-        return Response(serializer.data)
+    def get_object(self):
+        user = self.request.user
+        self.check_object_permissions(self.request, user)
+        return user
