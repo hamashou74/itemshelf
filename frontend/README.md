@@ -9,14 +9,18 @@
 
 1. npm ci
 2. .env.example を .env.local にコピー
-3. npm run api:generate
-4. npm run dev
+3. `SESSION_SECRET` を32文字以上のランダムな値に変更
+4. npm run api:generate
+5. npm run dev
 
 ## Environment Variables
 
 NEXT_PUBLIC_API_TIMEOUT_MS
 API_TIMEOUT_MS
 BACKEND_API_ORIGIN
+SESSION_SECRET
+
+`SESSION_SECRET` は Next.js が browser-facing session cookie を暗号化・検証するための server-only secret。32文字以上のランダムな値を使用し、公開しない。
 
 ## API Client Generation
 
