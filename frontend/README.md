@@ -39,12 +39,10 @@ Browser は Django/DRF や Database を直接利用しない。Next.js は brows
 
 ### Responsibility Matrix
 
-| Layer | Responsibilities | Must not own |
-| --- | --- | --- |
-| Browser / Client Components | UI rendering, interaction, form input, browser APIs | Django API transport, Django session/CSRF details, Database access |
-| Next.js | Server rendering, feature queries/actions, browser-facing encrypted session transport, UI-specific orchestration and error mapping | Domain persistence, final authorization, direct Database access |
-| Django / DRF | Domain API, authentication and session validity, CSRF enforcement for Django requests, business validation, final authorization, persistence | Browser UI orchestration |
-| Database | Persistent application data | Browser or Next.js application logic |
+- **Browser / Client Components**: UI rendering、interaction、form input、browser APIs を担当する。Django API transport、Django session/CSRF details、Database access は持たない。
+- **Next.js**: Server rendering、feature queries/actions、browser-facing encrypted session transport、UI-specific orchestration and error mapping を担当する。Domain persistence、final authorization、direct Database access は持たない。
+- **Django / DRF**: Domain API、authentication and session validity、Django request の CSRF enforcement、business validation、final authorization、persistence を担当する。Browser UI orchestration は持たない。
+- **Database**: Persistent application data を保持する。Browser や Next.js の application logic は持たない。
 
 ### Read Flow
 
