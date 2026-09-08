@@ -7,6 +7,10 @@ process.env.API_TIMEOUT_MS = "10000";
 process.env.NEXT_PUBLIC_API_TIMEOUT_MS = "10000";
 
 function clearCookie(name: string) {
+  if (typeof document === "undefined") {
+    return;
+  }
+
   document.cookie = `${name}=; Max-Age=0; Path=/`;
 }
 
