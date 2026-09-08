@@ -60,11 +60,11 @@ export async function getSessionId(): Promise<string | null> {
 export async function setSession(session: Session): Promise<void> {
   const expiresAt =
     session.maxAge === undefined ? null : Date.now() + session.maxAge * 1000;
-  const sealedSession = await sealData<SessionPayload>(
+  const sealedSession = await sealData(
     {
       sessionId: session.sessionId,
       expiresAt,
-    },
+    } satisfies SessionPayload,
     {
       password: getSessionSecret(),
       ttl: 0,
