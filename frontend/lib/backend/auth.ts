@@ -4,9 +4,12 @@ import axios, { AxiosHeaders, type AxiosResponse } from "axios";
 import { parseSetCookie } from "cookie";
 
 import { AUTH_TRANSPORT } from "@/lib/api/auth-transport";
-import { getAuth } from "@/lib/api/generated/client/auth/auth";
-import type { LoginRequest } from "@/lib/api/generated/models";
-import { CurrentUser as CurrentUserSchema } from "@/lib/api/generated/validation/schemas";
+import { getAuth } from "@/lib/backend/generated/client/auth/auth";
+import type { LoginRequest } from "@/lib/backend/generated/models";
+import {
+  CurrentUser as CurrentUserSchema,
+  LoginRequest as LoginRequestSchema,
+} from "@/lib/backend/generated/validation/schemas";
 import { createHttpClient } from "@/lib/backend/http";
 
 export type LoginResult =
@@ -28,6 +31,12 @@ export type LogoutResult =
       ok: false;
       reason: "unauthenticated" | "security" | "unexpected";
     };
+
+export function parseLoginCredentials(value: unknown): LoginRequest | null {
+  const parsedCredentials = LoginRequestSchema.safeParse(value);
+
+  return parsedCredentials.success ? parsedCredentials.data : null;
+}
 
 function getSetCookieHeaders(response: AxiosResponse): string[] {
   if (response.headers instanceof AxiosHeaders) {

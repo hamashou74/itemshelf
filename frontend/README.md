@@ -25,6 +25,8 @@ SESSION_SECRET
 
 Browser code does not call Django/DRF directly. Browser-facing interactions go through the Next.js application boundary. Server Components and Server Actions call Django through server-only modules under `lib/backend`.
 
+Runtime application code outside `lib/backend` must not import Orval-generated Django artifacts directly. Tests may import generated MSW handlers and Faker factories directly for test setup and fixtures.
+
 Add a Route Handler only when a concrete browser-facing HTTP endpoint is required; do not add a generic pass-through proxy to Django.
 
 ## API Client Generation
@@ -39,7 +41,7 @@ backend/schema.yaml が source of truth。
 - MSW handlers
 - Faker factories
 
-lib/api/generated/ は Git 管理しない。
+lib/backend/generated/ は Git 管理しない。
 手動編集禁止。
 
 以下の場合に npm run api:generate:
