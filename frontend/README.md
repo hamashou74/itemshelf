@@ -9,7 +9,7 @@
 
 1. npm ci
 2. .env.example を .env.local にコピー
-3. `SESSION_SECRET` を32文字以上のランダムな値に変更
+3. `openssl rand -base64 32` などで `SESSION_SECRET` を生成して設定
 4. npm run api:generate
 5. npm run dev
 
@@ -20,7 +20,7 @@ API_TIMEOUT_MS
 BACKEND_API_ORIGIN
 SESSION_SECRET
 
-`SESSION_SECRET` は Next.js が browser-facing session cookie を暗号化・検証するための server-only secret。32文字以上のランダムな値を使用し、公開しない。
+`SESSION_SECRET` は Next.js が browser-facing session cookie を暗号化・検証するための server-only secret。32文字以上のランダムな値を使用し、公開しない。未設定または32文字未満の場合は起動時の利用箇所でエラーになる。
 
 ## API Client Generation
 
