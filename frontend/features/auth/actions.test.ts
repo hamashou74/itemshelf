@@ -44,7 +44,7 @@ describe("auth actions", () => {
     vi.clearAllMocks();
   });
 
-  it("creates the session and redirects after login", async () => {
+  it("creates the frontend session and redirects after Django login", async () => {
     mocks.login.mockResolvedValue({
       ok: true,
       sessionId: "backend-session",
@@ -82,7 +82,17 @@ describe("auth actions", () => {
     expect(mocks.login).not.toHaveBeenCalled();
   });
 
-  it("logs out the Django session before clearing the session cookie", async () => {
+  it("clears an invalid frontend session without calling Django logout", async () => {
+    mocks.getSessionId.mockResolvedValue(null);
+
+    await logoutAction(INITIAL_LOGOUT_ACTION_STATE);
+
+    expect(mocks.logout).not.toHaveBeenCalled();
+    expect(mocks.clearSession).toHaveBeenCalledOnce();
+    expect(mocks.redirect).toHaveBeenCalledWith("/login");
+  });
+
+  it("logs out the Django session before clearing the frontend session", async () => {
     mocks.getSessionId.mockResolvedValue("backend-session");
     mocks.logout.mockResolvedValue({
       ok: true,
@@ -95,7 +105,7 @@ describe("auth actions", () => {
     expect(mocks.redirect).toHaveBeenCalledWith("/login");
   });
 
-  it("clears a stale session cookie when Django reports unauthenticated", async () => {
+  it("clears a stale frontend session when Django reports unauthenticated", async () => {
     mocks.getSessionId.mockResolvedValue("backend-session");
     mocks.logout.mockResolvedValue({
       ok: false,
@@ -108,7 +118,7 @@ describe("auth actions", () => {
     expect(mocks.redirect).toHaveBeenCalledWith("/login");
   });
 
-  it("preserves the session cookie when logout fails security checks", async () => {
+  it("preserves the frontend session when Django logout fails security checks", async () => {
     mocks.getSessionId.mockResolvedValue("backend-session");
     mocks.logout.mockResolvedValue({
       ok: false,
