@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
-import { getCurrentUser } from "@/features/auth/api/server";
+import { getCurrentUser } from "@/features/auth/queries";
 import { LoginForm } from "@/features/auth/components/login-form";
 
 export const metadata: Metadata = {
