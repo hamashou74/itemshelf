@@ -1,12 +1,12 @@
 // @vitest-environment node
 
+import { getIronSession } from "iron-session";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   cookies: vi.fn(),
   get: vi.fn(),
   set: vi.fn(),
-  delete: vi.fn(),
 }));
 
 vi.mock("server-only", () => ({}));
@@ -55,15 +55,9 @@ describe("session", () => {
         };
       },
     );
-    mocks.delete.mockImplementation((name: string) => {
-      if (storedCookie?.name === name) {
-        storedCookie = undefined;
-      }
-    });
     mocks.cookies.mockResolvedValue({
       get: mocks.get,
       set: mocks.set,
-      delete: mocks.delete,
     });
   });
 
@@ -75,11 +69,9 @@ describe("session", () => {
   it("requires an explicit session secret", async () => {
     delete process.env.SESSION_SECRET;
 
-    await expect(
-      setSession({
-        sessionId: "backend-session",
-      }),
-    ).rejects.toThrow("SESSION_SECRET must be at least 32 characters.");
+    await expect(getSessionId()).rejects.toThrow(
+      "SESSION_SECRET must be at least 32 characters.",
+    );
     expect(mocks.set).not.toHaveBeenCalled();
   });
 
@@ -104,6 +96,20 @@ describe("session", () => {
     await expect(getSessionId()).resolves.toBe("backend-session");
   });
 
+  it("stores a browser session cookie when Django does not provide Max-Age", async () => {
+    await setSession({
+      sessionId: "backend-session",
+    });
+
+    expect(storedCookie?.options).toEqual({
+      httpOnly: true,
+      secure: false,
+      sameSite: "lax",
+      path: "/",
+      maxAge: undefined,
+    });
+  });
+
   it("rejects a raw or tampered frontend session cookie", async () => {
     storedCookie = {
       name: SESSION_COOKIE_NAME,
@@ -112,6 +118,33 @@ describe("session", () => {
     };
 
     await expect(getSessionId()).resolves.toBeNull();
+  });
+
+  it("rejects unexpected persisted fields and replaces them on the next save", async () => {
+    const cookieStore = await mocks.cookies();
+    const existingSession = await getIronSession<{
+      sessionId?: string;
+      expiresAt?: number | null;
+      unexpected?: string;
+    }>(cookieStore, {
+      password: SESSION_SECRET,
+      cookieName: SESSION_COOKIE_NAME,
+      ttl: 0,
+      cookieOptions: { maxAge: undefined },
+    });
+
+    existingSession.sessionId = "backend-session";
+    existingSession.expiresAt = null;
+    existingSession.unexpected = "legacy-data";
+    await existingSession.save();
+
+    await expect(getSessionId()).resolves.toBeNull();
+
+    await setSession({
+      sessionId: "replacement-session",
+    });
+
+    await expect(getSessionId()).resolves.toBe("replacement-session");
   });
 
   it("rejects an encrypted frontend session after its backend expiry", async () => {
@@ -128,13 +161,21 @@ describe("session", () => {
     await expect(getSessionId()).resolves.toBeNull();
   });
 
-  it("deletes the frontend-owned session cookie", async () => {
+  it("destroys the frontend-owned session through iron-session", async () => {
     await setSession({
       sessionId: "backend-session",
     });
     await clearSession();
 
-    expect(mocks.delete).toHaveBeenCalledWith(SESSION_COOKIE_NAME);
-    expect(storedCookie).toBeUndefined();
+    expect(storedCookie?.name).toBe(SESSION_COOKIE_NAME);
+    expect(storedCookie?.value).toBe("");
+    expect(storedCookie?.options).toMatchObject({
+      httpOnly: true,
+      secure: false,
+      sameSite: "lax",
+      path: "/",
+      maxAge: 0,
+    });
+    await expect(getSessionId()).resolves.toBeNull();
   });
 });
