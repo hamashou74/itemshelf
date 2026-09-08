@@ -1,10 +1,11 @@
 from django.conf import settings
-from django.test import SimpleTestCase, TestCase
+from django.core.exceptions import ImproperlyConfigured
+from django.test import SimpleTestCase, TestCase, override_settings
 from django.urls import reverse
 from drf_spectacular.generators import SchemaGenerator
 from rest_framework import status
 
-from ..api.openapi import AUTH_TAG, CSRF_HEADER_PARAMETER
+from ..api.openapi import AUTH_TAG, CSRF_HEADER_PARAMETER, _csrf_header_name
 from ..models import User
 
 SCHEMA_PATH = reverse("schema")
@@ -19,6 +20,20 @@ AUTH_OPERATIONS = {
     LOGOUT_PATH: "post",
     CURRENT_USER_PATH: "get",
 }
+
+
+class CsrfHeaderNameTests(SimpleTestCase):
+    @override_settings(CSRF_HEADER_NAME="HTTP_X_XSRF_TOKEN")
+    def test_uses_django_header_normalization(self) -> None:
+        self.assertEqual(
+            _csrf_header_name(),
+            "X-XSRF-TOKEN",
+        )
+
+    @override_settings(CSRF_HEADER_NAME="X-XSRF-TOKEN")
+    def test_rejects_non_meta_header_name(self) -> None:
+        with self.assertRaises(ImproperlyConfigured):
+            _csrf_header_name()
 
 
 class AuthenticationOpenApiTests(SimpleTestCase):
