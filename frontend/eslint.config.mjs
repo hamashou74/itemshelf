@@ -3,8 +3,7 @@ import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
 import prettier from "eslint-config-prettier/flat";
 
-const generatedBackendImportRegex =
-  "(?:^|/)(?:lib/)?backend/generated(?:/|$)";
+const generatedBackendImportRegex = "(?:^|/)(?:lib/)?backend/generated(?:/|$)";
 const generatedBackendNonMockImportRegex =
   "(?:^|/)(?:lib/)?backend/generated(?:/|$)(?!.*\\.(?:msw|faker)$)";
 
