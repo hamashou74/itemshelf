@@ -17,9 +17,11 @@ const LOGIN_ERROR_MESSAGES = {
 } as const;
 
 export async function loginAction(
-  _previousState: LoginActionState,
+  previousState: LoginActionState,
   formData: FormData,
 ): Promise<LoginActionState> {
+  void previousState;
+
   const parsedCredentials = LoginRequestSchema.safeParse({
     username: formData.get("username"),
     password: formData.get("password"),
@@ -48,8 +50,10 @@ export async function loginAction(
 }
 
 export async function logoutAction(
-  _previousState: LogoutActionState,
+  previousState: LogoutActionState,
 ): Promise<LogoutActionState> {
+  void previousState;
+
   const sessionId = await getSessionId();
 
   if (sessionId === null) {
