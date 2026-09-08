@@ -46,7 +46,7 @@ export async function loginAction(
     ...(result.maxAge === undefined ? {} : { maxAge: result.maxAge }),
   });
 
-  redirect("/home");
+  return redirect("/home");
 }
 
 export async function logoutAction(
@@ -58,14 +58,14 @@ export async function logoutAction(
 
   if (sessionId === null) {
     await clearSession();
-    redirect("/login");
+    return redirect("/login");
   }
 
   const result = await logout(sessionId);
 
   if (result.ok || result.reason === "unauthenticated") {
     await clearSession();
-    redirect("/login");
+    return redirect("/login");
   }
 
   if (result.reason === "security") {
