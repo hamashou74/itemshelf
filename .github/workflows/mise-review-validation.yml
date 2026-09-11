@@ -1,0 +1,50 @@
+name: Mise Review Validation
+
+on:
+  push:
+    branches:
+      - chore/69-mise-development-workflow
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up mise
+        uses: jdx/mise-action@v4.2.3
+
+      - name: Verify shared tool versions
+        run: |
+          test "$(mise current python)" = "3.14.0"
+          test "$(mise current node)" = "24.19.0"
+          test "$(mise current uv)" = "0.12.6"
+
+      - name: Run setup
+        run: mise run setup
+
+      - name: Verify generated env files
+        run: |
+          test -s backend/.env.development
+          test -s frontend/.env.development
+          grep -Eq '^DJANGO_SECRET_KEY=.+$' backend/.env.development
+          grep -Eq '^SESSION_SECRET=.{32,}$' frontend/.env.development
+
+      - name: Verify env setup is idempotent
+        run: |
+          before_backend=$(sha256sum backend/.env.development)
+          before_frontend=$(sha256sum frontend/.env.development)
+          mise run env:setup
+          test "$before_backend" = "$(sha256sum backend/.env.development)"
+          test "$before_frontend" = "$(sha256sum frontend/.env.development)"
+
+      - name: Run repository CI through mise
+        run: mise run ci
