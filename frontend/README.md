@@ -8,7 +8,7 @@
 ## Setup
 
 1. npm ci
-2. .env.example を .env.local にコピー
+2. .env.development.example を .env.development にコピー
 3. `openssl rand -base64 32` などで `SESSION_SECRET` を生成して設定
 4. npm run api:generate
 5. npm run dev
@@ -176,8 +176,12 @@ MSW/Faker は OpenAPI から Orval で生成。
 
 ## Checks
 
-npm run api:generate
-npm run format:check
-npm run lint
-npm run test:run
-npm run build
+npm run ci
+
+`npm run ci` は以下を順番に実行する。
+
+- npm run api:generate
+- npm run format:check
+- npm run lint
+- npm run test:run
+- npm run build

@@ -12,7 +12,8 @@
     "test": "vitest",
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage",
-    "api:generate": "orval --fail-on-warnings"
+    "api:generate": "orval --fail-on-warnings",
+    "ci": "npm run api:generate && npm run format:check && npm run lint && npm run test:run && npm run build"
   },
   "dependencies": {
     "axios": "1.20.0",
