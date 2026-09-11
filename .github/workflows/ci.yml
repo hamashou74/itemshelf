@@ -45,26 +45,8 @@ jobs:
       - name: Install dependencies
         run: uv sync --locked
 
-      - name: Run Ruff lint
-        run: uv run poe lint --output-format=github
-
-      - name: Check Ruff formatting
-        run: uv run poe format-check
-
-      - name: Run backend type checks
-        run: uv run poe type-check
-
-      - name: Check migrations
-        run: uv run poe migrations-check
-
-      - name: Run Django system checks
-        run: uv run poe check
-
-      - name: Check OpenAPI schema
-        run: uv run poe schema-check
-
-      - name: Run Django tests
-        run: uv run poe test
+      - name: Run backend CI
+        run: uv run poe ci
 
   frontend:
     name: Frontend
