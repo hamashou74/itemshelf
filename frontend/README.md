@@ -23,152 +23,154 @@ SESSION_SECRET
 
 ## Application Architecture
 
-Itemshelf frontend は Next.js の browser-facing application / BFF として動作する。
+Itemshelf の product web application は、次の境界を採用する。
 
-- browser は Next.js にアクセスする。
-- Next.js server code は Django REST Framework API にアクセスする。
-- browser から Django API へ直接アクセスしない。
-- frontend から DB へ直接アクセスしない。
-- Django/DRF が認証状態と domain data の authority である。
+```text
+Browser
+   ↓
+Next.js frontend / BFF
+   ↓
+Django / DRF
+   ↓
+Database
+```
 
-## Authentication
+Browser は Django/DRF や Database を直接利用しない。Next.js は browser-facing な web application boundary として UI orchestration、Server Components、Server Actions、browser-facing session transport を担当する。Django/DRF は domain API、authentication/session validity、authorization、business validation、persistence を担当し、Database へのアクセスは Django 側に閉じる。
 
-認証方式は Django session authentication を利用する。
+### Responsibility Matrix
 
-### Browser session
+- **Browser / Client Components**: UI rendering、interaction、form input、browser APIs を担当する。Django API transport、Django session/CSRF details、Database access は持たない。
+- **Next.js**: Server rendering、feature queries/actions、browser-facing encrypted session transport、UI-specific orchestration and error mapping を担当する。Domain persistence、final authorization、direct Database access は持たない。
+- **Django / DRF**: Domain API、authentication and session validity、Django request の CSRF enforcement、business validation、final authorization、persistence を担当する。Browser UI orchestration は持たない。
+- **Database**: Persistent application data を保持する。Browser や Next.js の application logic は持たない。
 
-browser 側には Django の session cookie を直接保存しない。
+### Read Flow
 
-Next.js は `iron-session` で encrypted/signed httpOnly cookie を管理する。
+Server-rendered reads fetch data from Django through a server-only feature/query path.
 
-cookie の主な設定:
+```text
+Browser page request
+   ↓
+Server Component
+   ↓
+feature query
+   ↓
+lib/backend/*
+   ↓
+Orval-generated Django client
+   ↓
+Django / DRF
+   ↓
+Database
+```
 
-- httpOnly
-- sameSite=lax
-- secure=production のみ
-- path=/
+Server Components must not call an Itemshelf Route Handler merely to reach Django. When code is already executing on the Next.js server, call the server-only backend boundary directly and avoid an unnecessary internal HTTP hop.
 
-browser cookie には Django の session cookie value と CSRF token value を保存する。
+### Mutation Flow
 
-### Login
+Browser-originated application mutations use Server Actions by default.
 
-1. browser -> Next.js login action
-2. Next.js -> Django `GET /api/auth/csrf/`
-3. Django が CSRF cookie を返す
-4. Next.js -> Django `POST /api/auth/login/`
-5. Django が session cookie を返す
-6. Next.js が session/CSRF value を iron-session に保存
-7. browser には encrypted Next.js session cookie だけを返す
+```text
+Browser / Client Component
+   ↓
+Server Action
+   ↓
+lib/backend/*
+   ↓
+Orval-generated Django client
+   ↓
+Django / DRF
+   ↓
+Database
+```
 
-### Authenticated backend request
+Server Actions validate and normalize untrusted browser input for the web boundary, then delegate to Django. Django still performs backend validation and final authorization; frontend validation does not replace backend validation.
 
-Next.js server code は `backendFetch` を通して Django API にアクセスする。
+### Route Handlers
 
-`backendFetch` は保存済みの Django session cookie と CSRF token を request に付与する。
+Add a Route Handler only when the Browser or an external caller actually needs an HTTP endpoint owned by Next.js, such as a browser-only integration, polling endpoint, upload/download flow, callback, webhook, or streaming endpoint.
 
-unsafe method では:
+A Route Handler that exists only to proxy arbitrary Django paths is prohibited. Do not reintroduce a generic `/api/:path*` pass-through or equivalent browser-to-Django tunnel.
 
-- `X-CSRFToken`
-- Django CSRF cookie
+When a Route Handler is required, it follows the same backend boundary:
 
-を送信する。
+```text
+Browser / external caller
+   ↓
+explicit Route Handler
+   ↓
+lib/backend/*
+   ↓
+Django / DRF
+```
 
-### Logout
+### Authentication Boundary
 
-1. browser -> Next.js logout action
-2. Next.js -> Django `POST /api/auth/logout/`
-3. Django session を invalidation
-4. Next.js local session を clear
+Django remains the authentication and session-validity authority. Next.js does not maintain a second user/session database and does not replace Django authentication with a separate authentication authority.
 
-backend logout が network error などで失敗した場合でも local session は削除する。
+The Browser receives the Next.js-owned `itemshelf_session` cookie. Its payload is encrypted and contains the backend session credential needed by the server-side adapter. Browser code does not read or manage Django's `sessionid` or `csrftoken` contract directly.
 
-### Current user
+```text
+Browser
+   ↓ encrypted HttpOnly itemshelf_session
+Next.js
+   ↓ backend session credential + server-side Django CSRF handling
+Django / DRF
+   ↓ Django authentication/session checks
+Database
+```
 
-Next.js は Django の `GET /api/auth/me/` を authentication source of truth として使用する。
+Login and logout are Server Actions. Django issues and invalidates the authoritative session; Next.js only maps that backend session into or out of the browser-facing encrypted session transport.
 
-未認証の場合は `null` として扱う。
+### Backend Contract Boundary
 
-## Backend Integration
+`backend/schema.yaml` is the source of truth for the Next.js-to-Django API contract. Orval generates Axios clients, TypeScript models, Zod schemas, MSW handlers, and Faker factories under `lib/backend/generated/`.
 
-backend integration code は `lib/backend` 以下に置く。
+Runtime application code outside `lib/backend/**` must not import generated Django artifacts directly. Feature code depends on server-only modules under `lib/backend/*`, which own generated transport details and contract parsing.
 
-### `generated/`
+Tests may import generated MSW handlers and Faker factories directly for request interception and fixtures. ESLint enforces this boundary for both alias and relative imports.
 
-Orval で backend OpenAPI schema から生成された client/types。
+### Forbidden Application Paths
 
-手書きで編集しない。
+Do not introduce these paths as normal product architecture:
 
-### `transport.ts`
+```text
+Browser ─X→ Django / DRF
+Browser ─X→ Database
+Next.js ─X→ Database
+Client Component ─X→ lib/backend/*
+runtime feature code ─X→ lib/backend/generated/*
+generic Next.js proxy ─X→ arbitrary Django API paths
+```
 
-Django API への共通 transport。
+For a new feature, use a Server Component + feature query for reads and a Server Action for browser-originated mutations unless the feature has a concrete requirement for an HTTP endpoint.
 
-責務:
+## API Client Generation
 
-- `BACKEND_API_ORIGIN` の適用
-- timeout
-- JSON handling
-- error mapping
-- Django session cookie forwarding
-- CSRF token forwarding
-- `credentials: "include"`
+backend/schema.yaml が source of truth。
 
-### `errors.ts`
+生成されるもの:
 
-backend error response を frontend 内部の error type に変換する。
+- Axios client
+- TypeScript models
+- Zod schemas
+- MSW handlers
+- Faker factories
 
-`BackendRequestError` は HTTP status と response body を保持する。
+lib/backend/generated/ は Git 管理しない。
+手動編集禁止。
 
-### `set-cookie.ts`
+以下の場合に npm run api:generate:
 
-Django response の `Set-Cookie` から必要な cookie value を取得する。
-
-Node.js runtime 向け実装。
-
-### `session.ts`
-
-iron-session を利用した Next.js server-only session storage。
-
-## Generated Client
-
-Orval config は `orval.config.ts`。
-
-OpenAPI source:
-
-`../backend/schema.yaml`
-
-生成先:
-
-- `lib/backend/generated/`
-- `lib/backend/generated/model/`
-
-生成コマンド:
-
-npm run api:generate
-
-OpenAPI schema が変更された場合は generated client も更新する。
+- clone 後
+- backend/schema.yaml 更新後
+- orval.config.ts 更新後
 
 ## Testing
 
-Vitest + Testing Library + MSW/Faker を使用する。
-
-### Unit tests
-
-server-side auth/backend modules は Vitest で unit test する。
-
-主な対象:
-
-- auth actions
-- backend transport
-- session handling
-- Set-Cookie parsing
-
-### Browser tests
-
-component tests は jsdom + Testing Library を利用する。
-
-server-only auth modules は必要に応じて mock する。
-
-### API mocks
+npm run test
+npm run test:run
+npm run test:coverage
 
 MSW/Faker は OpenAPI から Orval で生成。
 
