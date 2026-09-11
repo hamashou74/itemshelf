@@ -1,3 +1,5 @@
+# Tool versions are defined once in .tool-versions and read by mise automatically.
+
 [tasks."backend:setup"]
 description = "Install backend dependencies"
 dir = "backend"
