@@ -63,5 +63,9 @@ plugins = [
     "mypy_drf_plugin.main",
 ]
 
+[[tool.mypy.overrides]]
+module = ["environ", "environ.*"]
+follow_untyped_imports = true
+
 [tool.django-stubs]
 django_settings_module = "config.settings.test"
