@@ -1,0 +1,80 @@
+[tools]
+python = "3.14"
+node = "24.19.0"
+uv = "0.12.6"
+
+[tasks."backend:setup"]
+description = "Install backend dependencies"
+dir = "backend"
+run = "uv sync --locked"
+
+[tasks."frontend:setup"]
+description = "Install frontend dependencies"
+dir = "frontend"
+run = "npm ci"
+
+[tasks."env:setup"]
+description = "Create development environment files"
+run = "python scripts/setup_env.py"
+
+[tasks."frontend:api"]
+description = "Generate the frontend API client"
+dir = "frontend"
+run = "npm run api:generate"
+
+[tasks.setup]
+description = "Set up the development environment"
+run = [
+    { tasks = ["backend:setup", "frontend:setup"] },
+    { task = "env:setup" },
+    { task = "frontend:api" },
+]
+
+[tasks."backend:dev"]
+description = "Start the backend development server"
+dir = "backend"
+run = "uv run poe dev"
+
+[tasks."frontend:dev"]
+description = "Start the frontend development server"
+dir = "frontend"
+run = "npm run dev"
+
+[tasks.dev]
+description = "Start the development environment"
+run = [
+    { tasks = ["backend:dev", "frontend:dev"] },
+]
+
+[tasks."backend:format"]
+description = "Format backend files"
+dir = "backend"
+run = "uv run poe format"
+
+[tasks."frontend:format"]
+description = "Format frontend files"
+dir = "frontend"
+run = "npm run format"
+
+[tasks.format]
+description = "Format the repository"
+run = [
+    { tasks = ["backend:format", "frontend:format"] },
+]
+
+[tasks."backend:ci"]
+description = "Run backend CI checks"
+dir = "backend"
+run = "uv run poe ci"
+
+[tasks."frontend:ci"]
+description = "Run frontend CI checks"
+dir = "frontend"
+env = { _.file = "frontend/.env.test" }
+run = "npm run ci"
+
+[tasks.ci]
+description = "Run repository CI checks"
+run = [
+    { tasks = ["backend:ci", "frontend:ci"] },
+]
