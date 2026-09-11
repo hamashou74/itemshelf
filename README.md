@@ -7,11 +7,12 @@
 
 ## Initial Setup
 
-Create the local development environment files from the committed templates:
+Create the local development environment files from the committed templates and restrict them to the current user before adding secrets:
 
 ```bash
 cp backend/.env.development.example backend/.env.development
 cp frontend/.env.development.example frontend/.env.development
+chmod 600 backend/.env.development frontend/.env.development
 ```
 
 Edit the copied files and set the local secrets before starting the applications:
