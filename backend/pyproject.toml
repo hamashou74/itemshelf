@@ -4,6 +4,7 @@ version = "0.1.0"
 requires-python = ">=3.14"
 dependencies = [
     "django>=6.1",
+    "django-environ>=0.14,<0.15",
     "djangorestframework>=3.18.0",
     "drf-spectacular==0.30.0",
 ]
@@ -19,6 +20,7 @@ dev = [
 ]
 
 [tool.poe.tasks]
+runserver = "python manage.py runserver"
 lint = "ruff check ."
 format = "ruff format ."
 format-check = "ruff format --check ."
@@ -28,9 +30,15 @@ check = "python manage.py check"
 schema = "python manage.py spectacular --file schema.yaml --validate --fail-on-warn"
 test = "python -Wd manage.py test"
 
+[tool.poe.tasks.dev]
+ref = "runserver"
+envfile = ".env.development"
+
 [tool.poe.tasks.schema-check]
-shell = "git diff --exit-code -- schema.yaml"
-deps = ["schema"]
+sequence = [
+    "schema",
+    { shell = "git diff --exit-code -- schema.yaml" },
+]
 
 [tool.poe.tasks.ci]
 sequence = [
@@ -42,12 +50,14 @@ sequence = [
     "schema-check",
     "test",
 ]
+envfile = ".env.test"
 
 [tool.poe.tasks.coverage]
 sequence = [
     { cmd = "coverage run manage.py test" },
     { cmd = "coverage lcov" },
 ]
+envfile = ".env.test"
 
 [tool.mypy]
 plugins = [
@@ -55,5 +65,9 @@ plugins = [
     "mypy_drf_plugin.main",
 ]
 
+[[tool.mypy.overrides]]
+module = ["environ", "environ.*"]
+follow_untyped_imports = true
+
 [tool.django-stubs]
-django_settings_module = "config.settings.base"
+django_settings_module = "config.settings.test"
