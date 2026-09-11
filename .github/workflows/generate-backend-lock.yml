@@ -1,0 +1,45 @@
+name: Generate backend lock
+
+on:
+  pull_request:
+    branches:
+      - master
+
+permissions:
+  contents: read
+
+jobs:
+  lock:
+    if: github.head_ref == 'chore/64-backend-environments'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v7.0.0
+        with:
+          python-version-file: backend/.python-version
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v10.0.1
+        with:
+          version: "0.12.6"
+          enable-cache: true
+
+      - name: Regenerate lockfile
+        run: uv lock
+
+      - name: Upload lockfile
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: backend-uv-lock
+          path: backend/uv.lock
