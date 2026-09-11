@@ -1,11 +1,11 @@
 import environ
 
-from .base import *  # noqa: F403
-from .base import BASE_DIR
+from . import base
+from .base import *
 
 
 env = environ.Env()
-environ.Env.read_env(BASE_DIR / ".env.test")
+environ.Env.read_env(base.BASE_DIR / ".env.test")
 
 DEBUG = False
 

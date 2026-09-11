@@ -2,12 +2,12 @@ from pathlib import Path
 
 import environ
 
-from .base import *  # noqa: F403
-from .base import BASE_DIR
+from . import base
+from .base import *
 
 
 env = environ.Env()
-environ.Env.read_env(BASE_DIR / ".env.development")
+environ.Env.read_env(base.BASE_DIR / ".env.development")
 
 DEBUG = True
 
@@ -24,7 +24,7 @@ if database["ENGINE"] == "django.db.backends.sqlite3":
     if database_name != ":memory:":
         database_path = Path(str(database_name))
         if not database_path.is_absolute():
-            database["NAME"] = BASE_DIR / database_path
+            database["NAME"] = base.BASE_DIR / database_path
 
 MAILERS = {
     "default": {
