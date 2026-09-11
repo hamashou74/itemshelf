@@ -5,7 +5,6 @@ import environ
 from . import base
 from .base import *
 
-
 env = environ.Env()
 environ.Env.read_env(base.BASE_DIR / ".env.development")
 
