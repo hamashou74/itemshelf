@@ -78,7 +78,7 @@ SESSION_SECRET=<staging-only random value of at least 32 characters>
 - Root directory: repository root (leave the service root unset rather than setting `/backend`).
 - `RAILWAY_DOCKERFILE_PATH=/backend/Dockerfile`.
 - Do not generate a public domain.
-- Healthcheck path: `/api/health/`.
+- Healthcheck path: `/api/health`.
 - Suggested watch paths:
   - `/backend/**`
   - `/.dockerignore`
@@ -125,7 +125,7 @@ For a test pull request, verify all of the following before relying on the workf
 1. Railway creates an isolated PR environment from `staging`.
 2. PostgreSQL is created without a public endpoint.
 3. The backend pre-deploy migration completes successfully.
-4. Backend `/api/health/` verifies the default database and frontend `/health` pass their respective Railway healthchecks.
+4. Backend `/api/health` verifies the default database and frontend `/health` pass their respective Railway healthchecks.
 5. Only the frontend receives a public URL.
 6. The frontend can communicate with the private backend through `BACKEND_API_ORIGIN`, including the generated health client.
 7. If the preview environment contains suitable non-production account data, login, `/home`, and logout work through the frontend URL.
