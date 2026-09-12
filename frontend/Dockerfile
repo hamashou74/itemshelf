@@ -8,8 +8,7 @@ WORKDIR /workspace/frontend
 
 COPY frontend/package.json frontend/package-lock.json ./
 
-RUN --mount=type=cache,target=/root/.npm \
-    npm ci --no-audit --no-fund
+RUN npm ci --no-audit --no-fund
 
 
 FROM node:${NODE_VERSION}-slim AS builder
@@ -22,8 +21,7 @@ COPY backend/schema.yaml /workspace/backend/schema.yaml
 
 RUN mkdir -p public
 RUN npm run api:generate
-RUN --mount=type=cache,target=/workspace/frontend/.next/cache \
-    npm run build
+RUN npm run build
 
 
 FROM node:${NODE_VERSION}-slim AS runtime
