@@ -96,6 +96,24 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorDetail'
           description: Authentication is required.
+  /api/health/:
+    get:
+      operationId: health_retrieve
+      tags:
+      - health
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+          description: ''
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+          description: ''
 components:
   schemas:
     CurrentUser:
@@ -115,6 +133,15 @@ components:
           readOnly: true
       required:
       - detail
+    Health:
+      type: object
+      properties:
+        status:
+          allOf:
+          - $ref: '#/components/schemas/StatusEnum'
+          readOnly: true
+      required:
+      - status
     LoginRequest:
       type: object
       properties:
@@ -129,6 +156,14 @@ components:
       required:
       - password
       - username
+    StatusEnum:
+      enum:
+      - ok
+      - unavailable
+      type: string
+      description: |-
+        * `ok` - ok
+        * `unavailable` - unavailable
   securitySchemes:
     cookieAuth:
       type: apiKey
