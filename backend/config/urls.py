@@ -19,10 +19,10 @@ from django.contrib import admin
 from django.urls import include, path
 from drf_spectacular.views import SpectacularAPIView
 
-from .views import health
+from .views import HealthView
 
 urlpatterns = [
-    path("health/", health, name="health"),
+    path("api/health/", HealthView.as_view(), name="health"),
     path("admin/", admin.site.urls),
     path(
         "api/schema/",
