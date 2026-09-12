@@ -8,12 +8,21 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from .serializers import HealthSerializer
+
 
 class HealthView(APIView):
     authentication_classes = ()
     permission_classes = (AllowAny,)
 
-    @extend_schema(exclude=True)
+    @extend_schema(
+        tags=["health"],
+        auth=[],
+        responses={
+            status.HTTP_200_OK: HealthSerializer,
+            status.HTTP_503_SERVICE_UNAVAILABLE: HealthSerializer,
+        },
+    )
     def get(self, _request: Request) -> Response:
         try:
             with connection.cursor() as cursor:
