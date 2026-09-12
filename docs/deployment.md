@@ -25,7 +25,7 @@ docker build --file backend/Dockerfile --tag itemshelf-backend:local .
 docker build --file frontend/Dockerfile --tag itemshelf-frontend:local .
 ```
 
-The frontend image regenerates the Orval client before `next build`; generated client files remain uncommitted. The production image uses Next.js standalone output. The backend image installs application dependencies from `backend/uv.lock` and runs Gunicorn.
+The frontend image regenerates the Orval client before `next build`; generated client files remain uncommitted. The production image uses Next.js standalone output. The backend image installs application dependencies from `backend/uv.lock` and runs Gunicorn. PostgreSQL connectivity uses the Psycopg 3 binary implementation selected in `backend/pyproject.toml`.
 
 ## Verify deployment settings
 
@@ -76,7 +76,7 @@ SESSION_SECRET=<staging-only random value of at least 32 characters>
 - Root directory: repository root (leave the service root unset rather than setting `/backend`).
 - `RAILWAY_DOCKERFILE_PATH=/backend/Dockerfile`.
 - Do not generate a public domain.
-- Healthcheck path: `/health/`.
+- Healthcheck path: `/api/health/`.
 - Suggested watch paths:
   - `/backend/**`
   - `/.dockerignore`
@@ -88,19 +88,17 @@ DJANGO_SETTINGS_MODULE=config.settings.deployment
 DJANGO_SECRET_KEY=<staging-only random value>
 DJANGO_ALLOWED_HOSTS=${{backend.RAILWAY_PRIVATE_DOMAIN}},healthcheck.railway.app
 DATABASE_URL=${{Postgres.DATABASE_URL}}
-PREVIEW_USERNAME=<staging preview username>
-PREVIEW_PASSWORD=<staging preview password>
 ```
 
-The backend healthcheck is intentionally application-only and does not query PostgreSQL. Database connectivity and migrations are checked by the pre-deploy command.
+The backend healthcheck is a DRF endpoint with authentication disabled and `AllowAny` permission so deployment health does not depend on application sessions. It is intentionally excluded from the generated OpenAPI schema because it is an operational endpoint rather than part of the frontend/backend application contract. It does not query PostgreSQL; database connectivity and migrations are checked by the pre-deploy command.
 
-Set the staging backend pre-deploy command to:
+Set the backend pre-deploy command to:
 
 ```bash
-python manage.py migrate --noinput && python manage.py provision_preview_user
+python manage.py migrate --noinput
 ```
 
-The preview-user command is idempotent and always keeps that account non-staff and non-superuser. Use only staging/PR credentials for these variables. A future production environment should run migrations without `provision_preview_user`.
+Do not create preview users or credentials from deployment/application code. Test-account and fixture lifecycle is an environment/data-management responsibility and should be designed separately from service deployment. If authenticated preview testing is required, provision the required non-production data through an operator-controlled mechanism appropriate to that environment.
 
 ### Postgres
 
@@ -124,11 +122,12 @@ For a test pull request, verify all of the following before relying on the workf
 
 1. Railway creates an isolated PR environment from `staging`.
 2. PostgreSQL is created without a public endpoint.
-3. The backend pre-deploy migration and preview-user provisioning complete successfully.
-4. Backend `/health/` and frontend `/health` pass Railway healthchecks.
+3. The backend pre-deploy migration completes successfully.
+4. Backend `/api/health/` and frontend `/health` pass Railway healthchecks.
 5. Only the frontend receives a public URL.
-6. The preview user can log in, reach `/home`, and log out through the frontend URL.
-7. Closing or merging the PR removes the ephemeral Railway environment.
+6. The frontend can communicate with the private backend through `BACKEND_API_ORIGIN`.
+7. If the preview environment contains suitable non-production account data, login, `/home`, and logout work through the frontend URL.
+8. Closing or merging the PR removes the ephemeral Railway environment.
 
 ## Railway configuration source
 
@@ -148,4 +147,7 @@ Do not add `railway.toml` or `railway.json` for new services. Railway has deprec
 - uv Docker integration: https://docs.astral.sh/uv/guides/integration/docker/
 - Django deployment checklist: https://docs.djangoproject.com/en/6.1/howto/deployment/checklist/
 - Django PostgreSQL support: https://docs.djangoproject.com/en/6.1/ref/databases/#postgresql-notes
+- Django REST framework authentication: https://www.django-rest-framework.org/api-guide/authentication/
+- Django REST framework permissions: https://www.django-rest-framework.org/api-guide/permissions/
+- drf-spectacular schema customization: https://drf-spectacular.readthedocs.io/en/stable/drf_spectacular.html
 - Psycopg installation: https://www.psycopg.org/psycopg3/docs/basic/install.html
