@@ -1,0 +1,31 @@
+pre-commit:
+  parallel: true
+
+  jobs:
+    - name: backend-format
+      root: backend/
+      glob:
+        - "backend/*.py"
+        - "backend/**/*.py"
+      run: uv run poe format-check
+
+    - name: backend-lint
+      root: backend/
+      glob:
+        - "backend/*.py"
+        - "backend/**/*.py"
+      run: uv run poe lint
+
+    - name: frontend-format
+      root: frontend/
+      glob:
+        - "frontend/*.{js,jsx,mjs,cjs,ts,tsx,json,css,md}"
+        - "frontend/**/*.{js,jsx,mjs,cjs,ts,tsx,json,css,md}"
+      run: npm run format:check
+
+    - name: frontend-lint
+      root: frontend/
+      glob:
+        - "frontend/*.{js,jsx,mjs,cjs,ts,tsx}"
+        - "frontend/**/*.{js,jsx,mjs,cjs,ts,tsx}"
+      run: npm run lint
