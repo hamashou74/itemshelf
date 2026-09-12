@@ -24,10 +24,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-RUN apt-get update \
-    && apt-get install --no-install-recommends -y libpq5 \
-    && rm -rf /var/lib/apt/lists/* \
-    && groupadd --system app \
+RUN groupadd --system app \
     && useradd --system --gid app --home-dir /app app
 
 COPY --from=dependencies /app/.venv /app/.venv
