@@ -68,7 +68,7 @@ BACKEND_API_ORIGIN=http://${{backend.RAILWAY_PRIVATE_DOMAIN}}:${{backend.PORT}}
 SESSION_SECRET=<staging-only random value of at least 32 characters>
 ```
 
-`BACKEND_API_ORIGIN` is server-only. The browser continues to talk only to Next.js.
+`BACKEND_API_ORIGIN` is server-only. The browser continues to talk only to Next.js. The frontend `/health` route is a service-local Railway readiness endpoint: it validates the frontend's required runtime configuration without making the frontend health result depend on another service's availability.
 
 ### backend
 
@@ -90,7 +90,7 @@ DJANGO_ALLOWED_HOSTS=${{backend.RAILWAY_PRIVATE_DOMAIN}},healthcheck.railway.app
 DATABASE_URL=${{Postgres.DATABASE_URL}}
 ```
 
-The backend healthcheck is a DRF readiness endpoint with authentication disabled and `AllowAny` permission so deployment health does not depend on application sessions. It is intentionally excluded from the generated OpenAPI schema because it is an operational endpoint rather than part of the frontend/backend application contract. The endpoint performs a lightweight query against Django's default database connection and returns `503 Service Unavailable` if the database cannot be reached, so Railway only activates a backend deployment that can serve its required database-backed API.
+The backend healthcheck is a DRF readiness endpoint with authentication disabled and `AllowAny` permission so deployment health does not depend on application sessions. It is part of the committed OpenAPI contract and therefore generates a typed Orval health client for server-side frontend use. The endpoint performs a lightweight query against Django's default database connection and returns `503 Service Unavailable` if the database cannot be reached, so Railway only activates a backend deployment that can serve its required database-backed API.
 
 Set the backend pre-deploy command to:
 
@@ -123,9 +123,9 @@ For a test pull request, verify all of the following before relying on the workf
 1. Railway creates an isolated PR environment from `staging`.
 2. PostgreSQL is created without a public endpoint.
 3. The backend pre-deploy migration completes successfully.
-4. Backend `/api/health/` verifies the default database and frontend `/health` pass Railway healthchecks.
+4. Backend `/api/health/` verifies the default database and frontend `/health` pass their respective Railway healthchecks.
 5. Only the frontend receives a public URL.
-6. The frontend can communicate with the private backend through `BACKEND_API_ORIGIN`.
+6. The frontend can communicate with the private backend through `BACKEND_API_ORIGIN`, including the generated health client.
 7. If the preview environment contains suitable non-production account data, login, `/home`, and logout work through the frontend URL.
 8. Closing or merging the PR removes the ephemeral Railway environment.
 
