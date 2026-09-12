@@ -1,3 +1,4 @@
+from django.db import DatabaseError, connection
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.views.csrf import csrf_failure as default_csrf_failure
 from drf_spectacular.utils import extend_schema
@@ -14,6 +15,15 @@ class HealthView(APIView):
 
     @extend_schema(exclude=True)
     def get(self, _request: Request) -> Response:
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT 1")
+        except DatabaseError:
+            return Response(
+                {"status": "unavailable"},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+
         return Response(
             {"status": "ok"},
             status=status.HTTP_200_OK,
