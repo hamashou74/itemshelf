@@ -42,7 +42,7 @@ jobs:
           DJANGO_SECRET_KEY: ci-deployment-check-secret-that-is-long-enough-for-django
           DJANGO_ALLOWED_HOSTS: localhost
           DATABASE_URL: "sqlite:///:memory:"
-        run: cd backend && uv run python manage.py check --deploy
+        run: cd backend && uv run python manage.py check --deploy --fail-level WARNING
 
   frontend:
     name: Frontend

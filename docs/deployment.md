@@ -39,8 +39,10 @@ DJANGO_SETTINGS_MODULE=config.settings.deployment \
 DJANGO_SECRET_KEY='local-deployment-check-secret-that-is-long-enough' \
 DJANGO_ALLOWED_HOSTS=localhost \
 DATABASE_URL='sqlite:///:memory:' \
-uv run python manage.py check --deploy
+uv run python manage.py check --deploy --fail-level WARNING
 ```
+
+The deployment settings intentionally silence only `security.W004`, `security.W008`, `security.W012`, and `security.W016`. Those checks assume a browser-facing HTTPS Django service, while Itemshelf keeps Django private and Next.js reaches it over Railway's WireGuard-encrypted private HTTP network. HSTS, Django-side HTTP-to-HTTPS redirects, and browser `Secure` cookie transport flags therefore do not apply to this service boundary. Any other deployment warning remains unsilenced and fails the strict check above. Re-evaluate these silences if Django ever becomes browser-facing or the network boundary changes.
 
 The Railway deployment itself validates PostgreSQL connectivity during the pre-deploy migration and again through the backend readiness healthcheck before the deployment becomes active.
 
@@ -146,6 +148,8 @@ Do not add `railway.toml` or `railway.json` for new services. Railway has deprec
 - Next.js output tracing / standalone: https://nextjs.org/docs/app/api-reference/config/next-config-js/output
 - uv Docker integration: https://docs.astral.sh/uv/guides/integration/docker/
 - Django deployment checklist: https://docs.djangoproject.com/en/6.1/howto/deployment/checklist/
+- Django system checks: https://docs.djangoproject.com/en/6.1/ref/checks/
+- Django settings: https://docs.djangoproject.com/en/6.1/ref/settings/#silenced-system-checks
 - Django PostgreSQL support: https://docs.djangoproject.com/en/6.1/ref/databases/#postgresql-notes
 - Django REST framework authentication: https://www.django-rest-framework.org/api-guide/authentication/
 - Django REST framework permissions: https://www.django-rest-framework.org/api-guide/permissions/
