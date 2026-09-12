@@ -1,0 +1,76 @@
+min_version = "2026.6.0"
+
+[tools]
+python = "3.14"
+node = "24.19.0"
+uv = "0.12.6"
+
+[tasks."backend:setup"]
+description = "Install backend dependencies"
+dir = "backend"
+run = "uv sync --locked"
+
+[tasks."frontend:setup"]
+description = "Install frontend dependencies"
+dir = "frontend"
+run = "npm ci"
+
+[tasks."frontend:api"]
+description = "Generate the frontend API client"
+dir = "frontend"
+run = "npm run api:generate"
+
+[tasks.setup]
+description = "Set up repository dependencies and generated API client"
+run = [
+    { tasks = ["backend:setup", "frontend:setup"] },
+    { task = "frontend:api" },
+]
+
+[tasks."backend:dev"]
+description = "Start the backend development server"
+dir = "backend"
+run = "uv run poe dev"
+
+[tasks."frontend:dev"]
+description = "Start the frontend development server"
+dir = "frontend"
+run = "npm run dev"
+
+[tasks.dev]
+description = "Start the development environment"
+run = [
+    { tasks = ["backend:dev", "frontend:dev"] },
+]
+
+[tasks."backend:format"]
+description = "Format backend files"
+dir = "backend"
+run = "uv run poe format"
+
+[tasks."frontend:format"]
+description = "Format frontend files"
+dir = "frontend"
+run = "npm run format"
+
+[tasks.format]
+description = "Format the repository"
+depends = ["backend:format", "frontend:format"]
+
+[tasks."backend:ci"]
+description = "Run backend checks"
+dir = "backend"
+run = "uv run poe ci"
+
+[tasks."frontend:ci"]
+description = "Run frontend checks"
+dir = "frontend"
+run = "npm run ci"
+env = { _.file = "frontend/.env.test" }
+
+[tasks.ci]
+description = "Run all repository checks"
+run = [
+    { task = "backend:ci" },
+    { task = "frontend:ci" },
+]
