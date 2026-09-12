@@ -36,6 +36,14 @@ jobs:
       - name: Run backend CI
         run: mise run backend:ci
 
+      - name: Check deployment settings
+        env:
+          DJANGO_SETTINGS_MODULE: config.settings.deployment
+          DJANGO_SECRET_KEY: ci-deployment-check-secret-that-is-long-enough-for-django
+          DJANGO_ALLOWED_HOSTS: localhost
+          DATABASE_URL: "sqlite:///:memory:"
+        run: cd backend && uv run python manage.py check --deploy
+
   frontend:
     name: Frontend
     runs-on: ubuntu-latest
@@ -55,3 +63,20 @@ jobs:
 
       - name: Run frontend CI
         run: mise run frontend:ci
+
+  containers:
+    name: Containers
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Build backend image
+        run: docker build --file backend/Dockerfile --tag itemshelf-backend:ci .
+
+      - name: Build frontend image
+        run: docker build --file frontend/Dockerfile --tag itemshelf-frontend:ci .
