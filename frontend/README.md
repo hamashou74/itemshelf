@@ -2,7 +2,7 @@
 
 ## Requirements
 
-- Node.js (`.node-version`)
+- Node.js (version managed by the root `mise.toml`)
 - Itemshelf backend
 
 ## Setup
