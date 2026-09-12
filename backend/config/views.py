@@ -1,11 +1,23 @@
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.views.csrf import csrf_failure as default_csrf_failure
-from django.views.decorators.http import require_GET
+from drf_spectacular.utils import extend_schema
+from rest_framework import status
+from rest_framework.permissions import AllowAny
+from rest_framework.request import Request
+from rest_framework.response import Response
+from rest_framework.views import APIView
 
 
-@require_GET
-def health(_request: HttpRequest) -> HttpResponse:
-    return HttpResponse("ok", content_type="text/plain")
+class HealthView(APIView):
+    authentication_classes = ()
+    permission_classes = (AllowAny,)
+
+    @extend_schema(exclude=True)
+    def get(self, _request: Request) -> Response:
+        return Response(
+            {"status": "ok"},
+            status=status.HTTP_200_OK,
+        )
 
 
 def csrf_failure(
