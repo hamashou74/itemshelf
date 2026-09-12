@@ -105,4 +105,9 @@ Individual frontend checks remain available through npm scripts. For the complet
 mise run frontend:ci
 ```
 
-See [`frontend/README.md`](frontend/README.md) for frontend architecture, API client generation, testing, and component-specific details.
+## Component Documentation
+
+Repository-level setup and workflow remain canonical here. Component READMEs contain backend/frontend-specific details without redefining the repository setup procedure:
+
+- [`backend/README.md`](backend/README.md): backend Poe tasks, environment selection, API schema, and backend checks.
+- [`frontend/README.md`](frontend/README.md): frontend architecture, API client generation, testing, and frontend checks.
