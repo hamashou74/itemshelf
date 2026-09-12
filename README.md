@@ -111,3 +111,4 @@ Repository-level setup and workflow remain canonical here. Component READMEs con
 
 - [`backend/README.md`](backend/README.md): backend Poe tasks, environment selection, API schema, and backend checks.
 - [`frontend/README.md`](frontend/README.md): frontend architecture, API client generation, testing, and frontend checks.
+- [`docs/deployment.md`](docs/deployment.md): Docker deployment contract and Railway staging/PR environment setup.
