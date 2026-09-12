@@ -6,14 +6,11 @@ FROM python:${PYTHON_VERSION}-slim AS dependencies
 
 COPY --from=ghcr.io/astral-sh/uv:0.12.6 /uv /uvx /bin/
 
-ENV UV_LINK_MODE=copy
-
 WORKDIR /app
 
 COPY backend/pyproject.toml backend/uv.lock ./
 
-RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --locked --no-dev --no-install-project
+RUN uv sync --locked --no-dev --no-install-project
 
 
 FROM python:${PYTHON_VERSION}-slim AS runtime
