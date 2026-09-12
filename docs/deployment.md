@@ -42,7 +42,7 @@ DATABASE_URL='sqlite:///:memory:' \
 uv run python manage.py check --deploy
 ```
 
-The Railway deployment itself validates PostgreSQL connectivity when the pre-deploy migration runs.
+The Railway deployment itself validates PostgreSQL connectivity during the pre-deploy migration and again through the backend readiness healthcheck before the deployment becomes active.
 
 ## Railway staging topology
 
@@ -90,7 +90,7 @@ DJANGO_ALLOWED_HOSTS=${{backend.RAILWAY_PRIVATE_DOMAIN}},healthcheck.railway.app
 DATABASE_URL=${{Postgres.DATABASE_URL}}
 ```
 
-The backend healthcheck is a DRF endpoint with authentication disabled and `AllowAny` permission so deployment health does not depend on application sessions. It is intentionally excluded from the generated OpenAPI schema because it is an operational endpoint rather than part of the frontend/backend application contract. It does not query PostgreSQL; database connectivity and migrations are checked by the pre-deploy command.
+The backend healthcheck is a DRF readiness endpoint with authentication disabled and `AllowAny` permission so deployment health does not depend on application sessions. It is intentionally excluded from the generated OpenAPI schema because it is an operational endpoint rather than part of the frontend/backend application contract. The endpoint performs a lightweight query against Django's default database connection and returns `503 Service Unavailable` if the database cannot be reached, so Railway only activates a backend deployment that can serve its required database-backed API.
 
 Set the backend pre-deploy command to:
 
@@ -123,7 +123,7 @@ For a test pull request, verify all of the following before relying on the workf
 1. Railway creates an isolated PR environment from `staging`.
 2. PostgreSQL is created without a public endpoint.
 3. The backend pre-deploy migration completes successfully.
-4. Backend `/api/health/` and frontend `/health` pass Railway healthchecks.
+4. Backend `/api/health/` verifies the default database and frontend `/health` pass Railway healthchecks.
 5. Only the frontend receives a public URL.
 6. The frontend can communicate with the private backend through `BACKEND_API_ORIGIN`.
 7. If the preview environment contains suitable non-production account data, login, `/home`, and logout work through the frontend URL.
