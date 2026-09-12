@@ -1,25 +1,33 @@
 # Itemshelf Frontend
 
-## Requirements
+Repository setup, tool versions, development environment preparation, and the combined development workflow are documented in the root [`README.md`](../README.md). Treat the root README as the source of truth for those repository-level procedures.
 
-- Node.js (version managed by the root `mise.toml`)
-- Itemshelf backend
+## Local Development
 
-## Setup
+The frontend development environment file is `frontend/.env.development`. Create it manually from `frontend/.env.development.example` and configure `SESSION_SECRET` as described in the root README. `mise run setup` does not create or overwrite development environment files.
 
-1. npm ci
-2. .env.development.example を .env.development にコピー
-3. `openssl rand -base64 32` などで `SESSION_SECRET` を生成して設定
-4. npm run api:generate
-5. npm run dev
+After repository setup, start both applications from the repository root with:
+
+```bash
+mise run dev
+```
+
+For frontend-only development:
+
+```bash
+cd frontend
+npm run dev
+```
+
+The Node.js version is managed by the root `mise.toml`.
 
 ## Environment Variables
 
-API_TIMEOUT_MS
-BACKEND_API_ORIGIN
-SESSION_SECRET
+- `API_TIMEOUT_MS`
+- `BACKEND_API_ORIGIN`
+- `SESSION_SECRET`
 
-`SESSION_SECRET` は Next.js が browser-facing session cookie を暗号化・検証するための server-only secret。32文字以上のランダムな値を使用し、公開しない。未設定または32文字未満の場合は起動時の利用箇所でエラーになる。
+`SESSION_SECRET` is a server-only secret used by Next.js to encrypt and verify the browser-facing session cookie. Use a random value of at least 32 characters and do not expose it publicly.
 
 ## Application Architecture
 
@@ -147,9 +155,9 @@ For a new feature, use a Server Component + feature query for reads and a Server
 
 ## API Client Generation
 
-backend/schema.yaml が source of truth。
+`backend/schema.yaml` is the source of truth for the frontend-to-backend API contract.
 
-生成されるもの:
+Generated artifacts include:
 
 - Axios client
 - TypeScript models
@@ -157,31 +165,41 @@ backend/schema.yaml が source of truth。
 - MSW handlers
 - Faker factories
 
-lib/backend/generated/ は Git 管理しない。
-手動編集禁止。
+`lib/backend/generated/` is not committed and must not be edited manually.
 
-以下の場合に npm run api:generate:
+`mise run setup` generates the client as part of initial repository setup. Regenerate it directly after changes to `backend/schema.yaml` or `frontend/orval.config.ts` with:
 
-- clone 後
-- backend/schema.yaml 更新後
-- orval.config.ts 更新後
+```bash
+cd frontend
+npm run api:generate
+```
 
 ## Testing
 
+Component-level test commands remain available directly:
+
+```bash
 npm run test
 npm run test:run
 npm run test:coverage
+```
 
-MSW/Faker は OpenAPI から Orval で生成。
+MSW and Faker artifacts are generated from the OpenAPI schema by Orval.
 
 ## Checks
 
-npm run ci
+Run the complete frontend CI contract from the repository root with:
 
-`npm run ci` は以下を順番に実行する。
+```bash
+mise run frontend:ci
+```
 
-- npm run api:generate
-- npm run format:check
-- npm run lint
-- npm run test:run
-- npm run build
+The mise task supplies the committed `frontend/.env.test` values to the underlying npm CI script. That script runs these checks sequentially:
+
+- `npm run api:generate`
+- `npm run format:check`
+- `npm run lint`
+- `npm run test:run`
+- `npm run build`
+
+Individual npm scripts remain available for targeted checks. Direct `npm run ci` expects the required environment variables to already be available in the process environment.
