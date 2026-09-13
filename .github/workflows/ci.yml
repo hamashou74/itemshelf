@@ -4,12 +4,7 @@ on:
   push:
     branches:
       - master
-      - "feature/**"
-      - "fix/**"
-      - "chore/**"
   pull_request:
-    branches:
-      - master
 
 permissions:
   contents: read
