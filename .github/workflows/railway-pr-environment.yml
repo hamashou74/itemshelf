@@ -1,0 +1,58 @@
+name: Railway PR Environment
+
+on:
+  pull_request_target:
+    branches:
+      - master
+    types:
+      - opened
+      - reopened
+      - closed
+
+permissions: {}
+
+concurrency:
+  group: railway-pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+env:
+  RAILWAY_PROJECT_ID: cfb989f1-c39a-41df-a61e-fb1779f4f3b6
+  RAILWAY_STAGING_ENVIRONMENT_ID: f737dcb0-3996-4589-8723-50f0c6de90d8
+  PREVIEW_ENVIRONMENT: pr-${{ github.event.pull_request.number }}
+
+jobs:
+  manage:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      (startsWith(github.event.pull_request.head.ref, 'feature/') ||
+       startsWith(github.event.pull_request.head.ref, 'fix/') ||
+       startsWith(github.event.pull_request.head.ref, 'chore/'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: railway-pr-management
+      deployment: false
+    container:
+      image: ghcr.io/railwayapp/cli:5.54.0
+    env:
+      RAILWAY_API_TOKEN: ${{ secrets.RAILWAY_API_TOKEN }}
+      PR_HEAD_REF: ${{ github.event.pull_request.head.ref }}
+
+    steps:
+      - name: Link Railway
+        run: >-
+          railway link
+          --project "$RAILWAY_PROJECT_ID"
+          --environment "$RAILWAY_STAGING_ENVIRONMENT_ID"
+
+      - name: Create preview environment
+        if: github.event.action != 'closed'
+        run: |
+          railway environment new "$PREVIEW_ENVIRONMENT" \
+            --copy "$RAILWAY_STAGING_ENVIRONMENT_ID" \
+            --service-config frontend source.branch "$PR_HEAD_REF" \
+            --service-config backend source.branch "$PR_HEAD_REF"
+
+      - name: Delete preview environment
+        if: github.event.action == 'closed'
+        run: railway environment delete "$PREVIEW_ENVIRONMENT" --yes
