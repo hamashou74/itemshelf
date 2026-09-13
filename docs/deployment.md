@@ -112,11 +112,12 @@ Itemshelf uses `.github/workflows/railway-pr-environment.yml` for Hobby-plan pre
 
 ### Required setup
 
-1. Create a GitHub environment named `railway-pr-management` and allow only the `master` deployment branch.
-2. Create a Railway workspace token scoped to `HamaShou's Projects` and store it in that GitHub environment as `RAILWAY_API_TOKEN`, not as a repository secret. Current Railway token/security guidance prefers workspace-scoped credentials for shared CI; verify environment create/delete during the first preview because the older PR-environment guide still demonstrates an account token.
-3. Keep **Wait for CI** enabled on the Railway `frontend` and `backend` services.
+1. Create repository variables `RAILWAY_PROJECT_ID` and `RAILWAY_STAGING_ENVIRONMENT_ID` with the Itemshelf project ID and the persistent `staging` environment ID.
+2. Create a GitHub environment named `railway-pr-management` and allow only the `master` deployment branch.
+3. Create a Railway workspace token scoped to `HamaShou's Projects` and store it in that GitHub environment as `RAILWAY_API_TOKEN`, not as a repository secret. Current Railway token/security guidance prefers workspace-scoped credentials for shared CI; verify environment create/delete during the first preview because the older PR-environment guide still demonstrates an account token.
+4. Keep **Wait for CI** enabled on the Railway `frontend` and `backend` services.
 
-The workflow uses `pull_request_target`, never checks out or executes pull-request code, and only provisions same-repository `feature/**`, `fix/**`, and `chore/**` pull requests targeting `master`. The protected GitHub environment supplies the Railway secret only to this trusted base-branch workflow.
+The workflow follows Railway's documented create/delete job structure, but uses `pull_request_target` so the privileged workflow definition comes from the trusted base repository. It never checks out or executes pull-request code. Preview creation is limited to same-repository pull requests targeting `master`; cleanup runs on close even if the pull request was later retargeted.
 
 When an eligible pull request is opened or reopened, the workflow copies `staging` to `pr-<number>` and changes both `frontend` and `backend` to the PR head branch. The copied PostgreSQL service and Railway reference variables remain isolated inside the preview environment. Closing or merging the pull request deletes the preview environment.
 
@@ -137,7 +138,7 @@ Before relying on the workflow, verify with a test pull request that:
 7. Closing or merging the PR removes the preview environment.
 8. If preview account data exists, login, `/home`, and logout work through the frontend URL.
 
-Because `pull_request_target` loads its workflow from `master`, merge the workflow change before performing the first end-to-end preview test.
+Because `pull_request_target` loads its workflow from the base repository, merge the workflow change before performing the first end-to-end preview test.
 
 ## Railway configuration source
 
