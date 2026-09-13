@@ -112,6 +112,8 @@ Itemshelf currently uses Railway's Hobby plan. Railway native PR Environments on
 
 Keep Railway's native **PR Environments** and **Bot PR Environments** disabled while this workflow owns the preview lifecycle. Enabling both mechanisms would create competing preview environments.
 
+The workflow provisions previews only for same-repository `feature/**`, `fix/**`, and `chore/**` branches targeting `master`, matching the project's branch conventions. Fork pull requests, Dependabot branches, and other branch names do not receive Railway preview environments and continue through the regular `pull_request` CI path.
+
 ### GitHub Actions prerequisite
 
 Create a dedicated GitHub deployment environment named `railway-pr-management` in the repository settings. Configure **Deployment branches and tags** to allow only the `master` branch.
@@ -131,7 +133,7 @@ The workflow intentionally:
 - references the protected `railway-pr-management` GitHub environment before the Railway secret is made available;
 - never checks out pull-request code;
 - never executes scripts, dependencies, configuration, or other content from the pull-request branch;
-- runs privileged Railway jobs only when `github.event.pull_request.head.repo.full_name == github.repository`;
+- runs privileged Railway jobs only for same-repository branches matching `feature/**`, `fix/**`, or `chore/**`;
 - grants the workflow `contents: read` and no broader `GITHUB_TOKEN` permission;
 - passes the PR branch name through an environment variable and quotes it as a CLI argument.
 
@@ -139,11 +141,9 @@ Do not move `RAILWAY_API_TOKEN` to a repository secret. A same-repository contri
 
 Do not add a PR-head checkout or execute PR-controlled code in this workflow. That would cross the trust boundary while `RAILWAY_API_TOKEN` is available.
 
-Fork pull requests are excluded from Railway preview provisioning. They continue to use the regular unprivileged `pull_request` CI path.
-
 ### Preview lifecycle
 
-When a same-repository pull request targeting `master` is opened or reopened, the workflow:
+When an eligible pull request targeting `master` is opened or reopened, the workflow:
 
 1. links the Railway CLI to the persistent `staging` environment;
 2. creates `pr-<number>` by copying `staging`;
@@ -153,7 +153,7 @@ The copied environment therefore keeps isolated frontend, backend, PostgreSQL, n
 
 Subsequent pushes to the PR branch are handled by Railway's normal GitHub autodeploy behavior. Keep **Wait for CI** enabled on `frontend` and `backend`.
 
-Railway Wait for CI evaluates workflow results for the commit being deployed. For that reason, CI runs on pushes to the repository's `feature/**`, `fix/**`, and `chore/**` branches. The `pull_request` CI path is retained for fork pull requests, while same-repository PR jobs are skipped to avoid running the same CI suite twice.
+Railway Wait for CI evaluates workflow results for the commit being deployed. For that reason, CI runs on pushes to the repository's `feature/**`, `fix/**`, and `chore/**` branches. The duplicate `pull_request` CI jobs are skipped only for same-repository branches in those namespaces. Fork pull requests, Dependabot pull requests, and other branch names retain the regular unprivileged `pull_request` CI path.
 
 When the pull request is closed or merged, the workflow deletes `pr-<number>` non-interactively. Railway CLI `5.54.0` is pinned by the workflow; its token-authentication path supports non-interactive environment deletion without an interactive 2FA prompt.
 
@@ -172,12 +172,13 @@ For a test pull request, verify all of the following before relying on the workf
 7. Only the frontend receives a public URL.
 8. The frontend can communicate with the private backend through `BACKEND_API_ORIGIN`, including the generated health client.
 9. A later push to the PR branch is held by Wait for CI until branch-head CI succeeds.
-10. If the preview environment contains suitable non-production account data, login, `/home`, and logout work through the frontend URL.
-11. Closing or merging the PR removes the ephemeral Railway environment.
+10. A Dependabot or other non-managed branch PR still runs the regular `pull_request` CI and does not create a Railway preview.
+11. If the preview environment contains suitable non-production account data, login, `/home`, and logout work through the frontend URL.
+12. Closing or merging the PR removes the ephemeral Railway environment.
 
 Also verify once that a normal `push` or `pull_request` job from a non-`master` ref cannot deploy to `railway-pr-management`; the environment's branch restriction is part of the credential boundary, not just documentation.
 
-The `pull_request_target` workflow is loaded from `master`, so a pull request that introduces or changes the workflow cannot exercise its own new privileged workflow definition. Merge this infrastructure change first, then validate it with a different pull request or by reopening an existing same-repository PR whose branch has been updated from the new `master`.
+The `pull_request_target` workflow is loaded from `master`, so a pull request that introduces or changes the workflow cannot exercise its own new privileged workflow definition. Merge this infrastructure change first, then validate it with a different pull request or by reopening an existing eligible same-repository PR whose branch has been updated from the new `master`.
 
 ## Railway configuration source
 
