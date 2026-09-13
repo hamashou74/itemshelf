@@ -21,12 +21,6 @@ concurrency:
 jobs:
   backend:
     name: Backend
-    if: >-
-      github.event_name == 'push' ||
-      github.event.pull_request.head.repo.full_name != github.repository ||
-      (!startsWith(github.event.pull_request.head.ref, 'feature/') &&
-       !startsWith(github.event.pull_request.head.ref, 'fix/') &&
-       !startsWith(github.event.pull_request.head.ref, 'chore/'))
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -55,12 +49,6 @@ jobs:
 
   frontend:
     name: Frontend
-    if: >-
-      github.event_name == 'push' ||
-      github.event.pull_request.head.repo.full_name != github.repository ||
-      (!startsWith(github.event.pull_request.head.ref, 'feature/') &&
-       !startsWith(github.event.pull_request.head.ref, 'fix/') &&
-       !startsWith(github.event.pull_request.head.ref, 'chore/'))
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -81,12 +69,6 @@ jobs:
 
   containers:
     name: Containers
-    if: >-
-      github.event_name == 'push' ||
-      github.event.pull_request.head.repo.full_name != github.repository ||
-      (!startsWith(github.event.pull_request.head.ref, 'feature/') &&
-       !startsWith(github.event.pull_request.head.ref, 'fix/') &&
-       !startsWith(github.event.pull_request.head.ref, 'chore/'))
     runs-on: ubuntu-latest
     timeout-minutes: 20
 

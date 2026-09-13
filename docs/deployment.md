@@ -108,80 +108,36 @@ Use Railway's PostgreSQL service and keep it private. Do not add a public TCP pr
 
 ## PR environments
 
-Itemshelf currently uses Railway's Hobby plan. Railway native PR Environments only deploy pull requests whose author has access to the Railway workspace or project, while adding collaborators requires Pro or Enterprise. Because AI-assisted changes are opened by `hamashou74-robot`, Itemshelf manages previews with `.github/workflows/railway-pr-environment.yml` instead of Railway's native PR Environment feature.
+Itemshelf uses `.github/workflows/railway-pr-environment.yml` for Hobby-plan previews because Railway native PR Environments cannot deploy pull requests authored by `hamashou74-robot` without Railway project/workspace access. Keep Railway native **PR Environments** and **Bot PR Environments** disabled while this workflow owns the preview lifecycle.
 
-Keep Railway's native **PR Environments** and **Bot PR Environments** disabled while this workflow owns the preview lifecycle. Enabling both mechanisms would create competing preview environments.
+### Required setup
 
-The workflow provisions previews only for same-repository `feature/**`, `fix/**`, and `chore/**` branches targeting `master`, matching the project's branch conventions. Fork pull requests, Dependabot branches, and other branch names do not receive Railway preview environments and continue through the regular `pull_request` CI path.
+1. Create a GitHub environment named `railway-pr-management` and allow only the `master` deployment branch.
+2. Create a Railway workspace token scoped to `HamaShou's Projects` and store it in that GitHub environment as `RAILWAY_API_TOKEN`, not as a repository secret. Current Railway token/security guidance prefers workspace-scoped credentials for shared CI; verify environment create/delete during the first preview because the older PR-environment guide still demonstrates an account token.
+3. Keep **Wait for CI** enabled on the Railway `frontend` and `backend` services.
 
-### GitHub Actions prerequisite
+The workflow uses `pull_request_target`, never checks out or executes pull-request code, and only provisions same-repository `feature/**`, `fix/**`, and `chore/**` pull requests targeting `master`. The protected GitHub environment supplies the Railway secret only to this trusted base-branch workflow.
 
-Create a dedicated GitHub deployment environment named `railway-pr-management` in the repository settings. Configure **Deployment branches and tags** to allow only the `master` branch.
+When an eligible pull request is opened or reopened, the workflow copies `staging` to `pr-<number>` and changes both `frontend` and `backend` to the PR head branch. The copied PostgreSQL service and Railway reference variables remain isolated inside the preview environment. Closing or merging the pull request deletes the preview environment.
 
-Create a Railway **workspace token** from account settings by selecting the `HamaShou's Projects` workspace, then add it to `railway-pr-management` as the environment secret `RAILWAY_API_TOKEN`. Do not create a repository-level secret with the same credential.
+CI also runs on pushes to `feature/**`, `fix/**`, and `chore/**` so Railway Wait for CI can evaluate the commit being deployed. The existing `pull_request` CI trigger remains unchanged.
 
-Railway's current Public API and CLI documentation support account and workspace tokens through `RAILWAY_API_TOKEN`. A workspace token is scoped to one workspace, whereas an account token can access all resources and workspaces. Railway's current security guidance describes account tokens as suitable for local/personal use and explicitly says not to put them in shared CI. Therefore Itemshelf uses the narrower workspace token even though the older PR-environment guide still shows an account token.
-
-Do not use a Railway project token for this workflow. Project tokens are scoped to one existing environment, while this workflow must create and delete environments.
-
-The Railway workspace, project, and `staging` environment IDs are non-secret deployment identifiers and are kept explicitly in the workflow. Update them if the Railway project or base environment is recreated.
-
-### Security boundary
-
-The preview lifecycle workflow uses `pull_request_target` because it needs the Railway credential. GitHub loads that event's workflow definition from the trusted base branch, and its `GITHUB_REF` is the pull request's base branch. Because `railway-pr-management` allows only `master`, the privileged jobs can access the environment secret while ordinary PR-branch `push` and `pull_request` workflows cannot.
-
-The workflow intentionally:
-
-- references the protected `railway-pr-management` GitHub environment before the Railway secret is made available;
-- never checks out pull-request code;
-- never executes scripts, dependencies, configuration, or other content from the pull-request branch;
-- runs privileged Railway jobs only for same-repository branches matching `feature/**`, `fix/**`, or `chore/**`;
-- grants the workflow `contents: read` and no broader `GITHUB_TOKEN` permission;
-- links Railway explicitly by workspace, project, and base-environment IDs;
-- passes the PR branch name through an environment variable and quotes it as a CLI argument.
-
-Do not move `RAILWAY_API_TOKEN` to a repository secret. A same-repository contributor can change ordinary PR workflows on a branch, whereas the deployment-branch restriction on `railway-pr-management` prevents those branch and pull-request refs from receiving this environment secret.
-
-Do not add a PR-head checkout or execute PR-controlled code in this workflow. That would cross the trust boundary while `RAILWAY_API_TOKEN` is available.
-
-### Preview lifecycle
-
-When an eligible pull request targeting `master` is opened or reopened, the workflow:
-
-1. links the Railway CLI explicitly to the `HamaShou's Projects` workspace and the persistent `staging` environment;
-2. creates `pr-<number>` by copying `staging`;
-3. overrides both `frontend` and `backend` `source.branch` values with the PR head branch as part of environment creation.
-
-The copied environment therefore keeps isolated frontend, backend, PostgreSQL, networking, variables, healthchecks, and pre-deploy migration settings while both application services build the PR branch. Railway reference variables continue to resolve within the copied environment.
-
-Subsequent pushes to the PR branch are handled by Railway's normal GitHub autodeploy behavior. Keep **Wait for CI** enabled on `frontend` and `backend`.
-
-Railway Wait for CI evaluates workflow results for the commit being deployed. For that reason, CI runs on pushes to the repository's `feature/**`, `fix/**`, and `chore/**` branches. The duplicate `pull_request` CI jobs are skipped only for same-repository branches in those namespaces. Fork pull requests, Dependabot pull requests, and other branch names retain the regular unprivileged `pull_request` CI path.
-
-When the pull request is closed or merged, the workflow deletes `pr-<number>` non-interactively. Railway CLI `5.54.0` is pinned by the workflow; its token-authentication path supports non-interactive environment deletion without an interactive 2FA prompt.
-
-Do not place production credentials in `staging`. Preview environments are copies of `staging`, so values available there must remain suitable for non-production use.
+Do not place production credentials in `staging`; preview environments inherit staging configuration.
 
 ## Preview verification
 
-For a test pull request, verify all of the following before relying on the workflow:
+Before relying on the workflow, verify with a test pull request that:
 
-1. The privileged workflow runs from the `master` base ref and can read `RAILWAY_API_TOKEN` from `railway-pr-management`.
-2. Railway creates an isolated `pr-<number>` environment from `staging` in the intended workspace/project.
-3. PostgreSQL is created without a public endpoint.
-4. Both `frontend` and `backend` use the PR head branch.
-5. The backend pre-deploy migration completes successfully.
-6. Backend `/api/health/` verifies the default database and frontend `/health` pass their respective Railway healthchecks.
-7. Only the frontend receives a public URL.
-8. The frontend can communicate with the private backend through `BACKEND_API_ORIGIN`, including the generated health client.
-9. A later push to the PR branch is held by Wait for CI until branch-head CI succeeds.
-10. A Dependabot or other non-managed branch PR still runs the regular `pull_request` CI and does not create a Railway preview.
-11. If the preview environment contains suitable non-production account data, login, `/home`, and logout work through the frontend URL.
-12. Closing or merging the PR removes the ephemeral Railway environment.
+1. Railway creates `pr-<number>` from `staging`.
+2. PostgreSQL is isolated and has no public endpoint.
+3. `frontend` and `backend` use the PR head branch.
+4. The backend migration and both healthchecks succeed.
+5. Only the frontend is public and it reaches the backend through the private BFF path.
+6. A later push waits for branch-head CI before Railway deploys it.
+7. Closing or merging the PR removes the preview environment.
+8. If preview account data exists, login, `/home`, and logout work through the frontend URL.
 
-Also verify once that a normal `push` or `pull_request` job from a non-`master` ref cannot deploy to `railway-pr-management`; the environment's branch restriction is part of the credential boundary, not just documentation.
-
-The `pull_request_target` workflow is loaded from `master`, so a pull request that introduces or changes the workflow cannot exercise its own new privileged workflow definition. Merge this infrastructure change first, then validate it with a different pull request or by reopening an existing eligible same-repository PR whose branch has been updated from the new `master`.
+Because `pull_request_target` loads its workflow from `master`, merge the workflow change before performing the first end-to-end preview test.
 
 ## Railway configuration source
 
@@ -195,7 +151,6 @@ Do not add `railway.toml` or `railway.json` for new services. Railway has deprec
 - Railway healthchecks: https://docs.railway.com/deployments/healthchecks
 - Railway pre-deploy commands: https://docs.railway.com/deployments/pre-deploy-command
 - Railway PR environments with GitHub Actions: https://docs.railway.com/cli/deploying#pr-environments-with-github-actions
-- Railway CLI environments: https://docs.railway.com/cli/environment
 - Railway GitHub autodeploys and Wait for CI: https://docs.railway.com/deployments/github-autodeploys
 - Railway API tokens: https://docs.railway.com/integrations/api
 - Railway production security guidance: https://docs.railway.com/guides/lock-down-production-project
@@ -203,7 +158,6 @@ Do not add `railway.toml` or `railway.json` for new services. Railway has deprec
 - Railway Config as Code deprecation: https://docs.railway.com/config-as-code
 - GitHub secure `pull_request_target` usage: https://docs.github.com/en/actions/reference/security/securely-using-pull_request_target
 - GitHub deployment environments: https://docs.github.com/en/actions/reference/workflows-and-actions/deployments-and-environments
-- GitHub variables and `GITHUB_REF`: https://docs.github.com/en/actions/reference/workflows-and-actions/variables
 - Next.js output tracing / standalone: https://nextjs.org/docs/app/api-reference/config/next-config-js/output
 - uv Docker integration: https://docs.astral.sh/uv/guides/integration/docker/
 - Django deployment checklist: https://docs.djangoproject.com/en/6.1/howto/deployment/checklist/
