@@ -108,28 +108,39 @@ Use Railway's PostgreSQL service and keep it private. Do not add a public TCP pr
 
 ## PR environments
 
-Enable standard PR Environments and set `staging` as their base environment. Standard PR Environments copy the base environment's services, networking, and variables into an isolated ephemeral environment, which gives each PR its own frontend, backend, and PostgreSQL resources.
+Itemshelf uses `.github/workflows/railway-pr-envs.yml` for Hobby-plan previews because Railway native PR Environments cannot deploy pull requests authored by `hamashou74-robot` without Railway project/workspace access. Keep Railway native **PR Environments** and **Bot PR Environments** disabled while this workflow owns the preview lifecycle.
 
-Keep Focused PR Environments disabled initially. The current goal is full-stack isolation rather than reusing unchanged services from staging.
+### Required setup
 
-If AI coding tools or other GitHub bots open pull requests, enable Railway's **Bot PR Environments** option.
+1. Create the repository variable `LINK_PROJECT_ID` with the Itemshelf Railway project ID.
+2. Create the repository variable `DUPLICATE_FROM_ID` with the persistent `staging` environment ID to copy.
+3. Create a GitHub environment named `railway-pr-environment`.
+4. Store the Railway credential in that GitHub environment as `RAILWAY_API_TOKEN`.
 
-Do not place production credentials in `staging`. Railway sealed variables are intentionally not copied into PR environments, so values needed by previews must be staging/test credentials rather than sealed production secrets.
+The workflow uses `pull_request_target` for `opened`, `reopened`, and `closed` events. Its jobs reference the GitHub environment with `deployment: false`, so the environment provides its protected configuration without creating a GitHub Deployment record. The workflow does not check out or execute pull-request code.
 
-After Railway is connected, enable **Wait for CI** so deployments wait for the repository checks before building a preview.
+On `opened` or `reopened`, the create job links the Railway project, creates `pr-<number>` by copying `DUPLICATE_FROM_ID`, and sets the copied `backend` and `frontend` services' `source.branch` values to `github.head_ref`. On `closed`, the delete job removes the corresponding preview environment non-interactively with `--yes`.
+
+The workflow uses `ghcr.io/railwayapp/cli:latest`, matching Railway's documented GitHub Actions pattern. It does not add repository or base-branch filters beyond the `pull_request_target` event itself.
+
+The existing CI workflow continues to run on pushes to `master`. Its `pull_request` trigger is intentionally not restricted to a particular base branch, so pull requests handled by the preview workflow continue to receive the repository's normal PR checks.
+
+Do not place production credentials in `staging`; preview environments inherit the copied staging configuration.
 
 ## Preview verification
 
-For a test pull request, verify all of the following before relying on the workflow:
+After the workflow is present on `master`, verify with a test pull request that:
 
-1. Railway creates an isolated PR environment from `staging`.
-2. PostgreSQL is created without a public endpoint.
-3. The backend pre-deploy migration completes successfully.
-4. Backend `/api/health` verifies the default database and frontend `/health` pass their respective Railway healthchecks.
-5. Only the frontend receives a public URL.
-6. The frontend can communicate with the private backend through `BACKEND_API_ORIGIN`, including the generated health client.
-7. If the preview environment contains suitable non-production account data, login, `/home`, and logout work through the frontend URL.
-8. Closing or merging the PR removes the ephemeral Railway environment.
+1. Railway creates `pr-<number>` from the environment configured by `DUPLICATE_FROM_ID`.
+2. PostgreSQL is isolated and has no public endpoint.
+3. `frontend` and `backend` use the PR head branch.
+4. The backend migration and both healthchecks succeed.
+5. Only the frontend is public and it reaches the backend through the private BFF path.
+6. The repository's normal pull-request CI succeeds for the preview commit.
+7. Closing or merging the PR removes the preview environment.
+8. If preview account data exists, login, `/home`, and logout work through the frontend URL.
+
+Because `pull_request_target` loads its workflow from the base repository, merge the workflow change before performing the first end-to-end preview test.
 
 ## Railway configuration source
 
@@ -142,9 +153,14 @@ Do not add `railway.toml` or `railway.json` for new services. Railway has deprec
 - Railway private networking: https://docs.railway.com/networking/private-networking
 - Railway healthchecks: https://docs.railway.com/deployments/healthchecks
 - Railway pre-deploy commands: https://docs.railway.com/deployments/pre-deploy-command
-- Railway PR environments: https://docs.railway.com/guides/preview-deployments-with-pr-environments
+- Railway PR environments with GitHub Actions: https://docs.railway.com/cli/deploying#pr-environments-with-github-actions
+- Railway GitHub autodeploys and Wait for CI: https://docs.railway.com/deployments/github-autodeploys
+- Railway API tokens: https://docs.railway.com/integrations/api
+- Railway production security guidance: https://docs.railway.com/guides/lock-down-production-project
 - Railway variables: https://docs.railway.com/variables
 - Railway Config as Code deprecation: https://docs.railway.com/config-as-code
+- GitHub secure `pull_request_target` usage: https://docs.github.com/en/actions/reference/security/securely-using-pull_request_target
+- GitHub deployment environments: https://docs.github.com/en/actions/reference/workflows-and-actions/deployments-and-environments
 - Next.js output tracing / standalone: https://nextjs.org/docs/app/api-reference/config/next-config-js/output
 - uv Docker integration: https://docs.astral.sh/uv/guides/integration/docker/
 - Django deployment checklist: https://docs.djangoproject.com/en/6.1/howto/deployment/checklist/
