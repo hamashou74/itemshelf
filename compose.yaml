@@ -1,0 +1,80 @@
+services:
+  postgres:
+    image: postgres:18
+    environment:
+      POSTGRES_DB: itemshelf
+      POSTGRES_USER: itemshelf
+      POSTGRES_PASSWORD: itemshelf-local
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.deployment
+      DJANGO_SECRET_KEY: local-compose-only-secret-key-do-not-use-outside-development
+      DJANGO_ALLOWED_HOSTS: "backend,localhost,127.0.0.1,[::1]"
+      DATABASE_URL: postgresql://itemshelf:itemshelf-local@postgres:5432/itemshelf
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command:
+      - sh
+      - -c
+      - >-
+        python manage.py migrate --noinput &&
+        exec gunicorn config.wsgi:application --bind 0.0.0.0:8000
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - >-
+          import urllib.request;
+          urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=5)
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    environment:
+      API_TIMEOUT_MS: "10000"
+      BACKEND_API_ORIGIN: http://backend:8000
+      SESSION_SECRET: local-compose-session-secret-at-least-32-characters
+    ports:
+      - "3000:3000"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - >-
+          fetch('http://127.0.0.1:3000/health')
+          .then((response) => process.exit(response.ok ? 0 : 1))
+          .catch(() => process.exit(1))
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+volumes:
+  postgres-data:
