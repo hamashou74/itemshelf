@@ -78,7 +78,7 @@ SESSION_SECRET=<staging-only random value of at least 32 characters>
 - Root directory: repository root (leave the service root unset rather than setting `/backend`).
 - `RAILWAY_DOCKERFILE_PATH=/backend/Dockerfile`.
 - Do not generate a public domain.
-- Healthcheck path: `/api/health/`.
+- Healthcheck path: `/api/health`.
 - Suggested watch paths:
   - `/backend/**`
   - `/.dockerignore`

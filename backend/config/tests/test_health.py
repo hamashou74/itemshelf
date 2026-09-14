@@ -7,6 +7,9 @@ from rest_framework.test import APITestCase
 
 
 class HealthViewTests(APITestCase):
+    def test_health_url_has_no_trailing_slash(self) -> None:
+        self.assertEqual(reverse("health"), "/api/health")
+
     def test_health_returns_ok_without_authentication(self) -> None:
         response = self.client.get(reverse("health"))
 
