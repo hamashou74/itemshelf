@@ -1,0 +1,51 @@
+name: Manage PR environments (Railway)
+
+on:
+  pull_request_target:
+    types: [opened, reopened, closed]
+
+jobs:
+  create:
+    if: github.event.action != 'closed'
+    runs-on: ubuntu-latest
+    environment:
+      name: railway-pr-environment
+      deployment: false
+    env:
+      RAILWAY_API_TOKEN: ${{ secrets.RAILWAY_API_TOKEN }}
+    container: ghcr.io/railwayapp/cli:latest
+    steps:
+      - name: Link to project
+        run: >-
+          railway link
+          --project ${{ vars.LINK_PROJECT_ID }}
+          --environment ${{ vars.DUPLICATE_FROM_ID }}
+      - name: Create Railway Environment for PR
+        env:
+          PREVIEW_ENVIRONMENT: pr-${{ github.event.pull_request.number }}
+          PR_HEAD_REF: ${{ github.head_ref }}
+        run: >-
+          railway environment new "$PREVIEW_ENVIRONMENT"
+          --copy ${{ vars.DUPLICATE_FROM_ID }}
+          --service-config backend "source.branch" "$PR_HEAD_REF"
+          --service-config frontend "source.branch" "$PR_HEAD_REF"
+
+  delete:
+    if: github.event.action == 'closed'
+    runs-on: ubuntu-latest
+    environment:
+      name: railway-pr-environment
+      deployment: false
+    env:
+      RAILWAY_API_TOKEN: ${{ secrets.RAILWAY_API_TOKEN }}
+    container: ghcr.io/railwayapp/cli:latest
+    steps:
+      - name: Link to project
+        run: >-
+          railway link
+          --project ${{ vars.LINK_PROJECT_ID }}
+          --environment ${{ vars.DUPLICATE_FROM_ID }}
+      - name: Delete Railway Environment for PR
+        env:
+          PREVIEW_ENVIRONMENT: pr-${{ github.event.pull_request.number }}
+        run: railway environment delete "$PREVIEW_ENVIRONMENT" --yes
