@@ -86,8 +86,23 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v7.0.1
 
+      - name: Validate Compose configuration
+        run: docker compose config --quiet
+
       - name: Build backend image
         run: docker build --file backend/Dockerfile --tag itemshelf-backend:ci .
 
       - name: Build frontend image
         run: docker build --file frontend/Dockerfile --tag itemshelf-frontend:ci .
+
+      - name: Start Compose stack
+        run: docker compose up --detach --build --wait
+
+      - name: Verify Compose health endpoints
+        run: |
+          curl --fail --silent --show-error http://127.0.0.1:8000/api/health
+          curl --fail --silent --show-error http://127.0.0.1:3000/health
+
+      - name: Stop Compose stack
+        if: always()
+        run: docker compose down --volumes
