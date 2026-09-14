@@ -29,6 +29,27 @@ run = [
     "lefthook install",
 ]
 
+[tasks."db:up"]
+description = "Start the local PostgreSQL service"
+run = "docker compose up --detach --wait postgres"
+
+[tasks."db:down"]
+description = "Stop the local PostgreSQL service"
+run = "docker compose stop postgres"
+
+[tasks."backend:migrate"]
+description = "Apply backend development database migrations"
+dir = "backend"
+run = "uv run python manage.py migrate --noinput"
+
+[tasks."compose:up"]
+description = "Build and start the full local container stack"
+run = "docker compose up --build --wait"
+
+[tasks."compose:down"]
+description = "Stop and remove the local container stack"
+run = "docker compose down"
+
 [tasks."backend:dev"]
 description = "Start the backend development server"
 dir = "backend"
@@ -42,6 +63,8 @@ run = "npm run dev"
 [tasks.dev]
 description = "Start the development environment"
 run = [
+    { task = "db:up" },
+    { task = "backend:migrate" },
     { tasks = ["backend:dev", "frontend:dev"] },
 ]
 
@@ -73,6 +96,7 @@ env = { _.file = "frontend/.env.test" }
 [tasks.ci]
 description = "Run all repository checks"
 run = [
+    { task = "db:up" },
     { task = "backend:ci" },
     { task = "frontend:ci" },
 ]
