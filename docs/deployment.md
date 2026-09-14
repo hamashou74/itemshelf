@@ -108,39 +108,35 @@ Use Railway's PostgreSQL service and keep it private. Do not add a public TCP pr
 
 ## PR environments
 
-Itemshelf uses `.github/workflows/railway-pr-envs.yml` for Hobby-plan previews because Railway native PR Environments cannot deploy pull requests authored by `hamashou74-robot` without Railway project/workspace access. Keep Railway native **PR Environments** and **Bot PR Environments** disabled while this workflow owns the preview lifecycle.
+Itemshelf uses Railway native **PR Environments** as the single preview lifecycle. Do not add a repository workflow that creates or deletes Railway environments for pull requests; running both mechanisms creates duplicate preview environments.
 
-### Required setup
+Configure PR Environments in Railway under **Project Settings → Environments**:
 
-1. Create the repository variable `LINK_PROJECT_ID` with the Itemshelf Railway project ID.
-2. Create the repository variable `DUPLICATE_FROM_ID` with the persistent `staging` environment ID to copy.
-3. Create a GitHub environment named `railway-pr-environment`.
-4. Store the Railway credential in that GitHub environment as `RAILWAY_API_TOKEN`.
+1. Enable **PR Environments**.
+2. Use the persistent `staging` environment as the PR Environment base so previews inherit the intended non-production services, networking, and variables.
+3. Keep **Focused PR Environments** disabled unless a separate change intentionally adopts partial previews; the current preview contract is full-stack isolation.
+4. Enable **Bot PR Environments** when PRs are opened by GitHub bot identities that Railway classifies as supported bots. Ordinary GitHub user accounts remain subject to Railway's project/workspace authorization rules.
 
-The workflow uses `pull_request_target` for `opened`, `reopened`, and `closed` events. Its jobs reference the GitHub environment with `deployment: false`, so the environment provides its protected configuration without creating a GitHub Deployment record. The workflow does not check out or execute pull-request code.
+Railway owns creation and teardown of the preview environment. When a pull request opens, Railway duplicates the base environment and deploys the pull-request branch for repository-connected services. When the pull request is merged or closed, Railway deletes the temporary environment automatically. Railway-provided domains on the base environment are also the prerequisite for automatic preview domains.
 
-On `opened` or `reopened`, the create job links the Railway project, creates `pr-<number>` by copying `DUPLICATE_FROM_ID`, and sets the copied `backend` and `frontend` services' `source.branch` values to `github.head_ref`. On `closed`, the delete job removes the corresponding preview environment non-interactively with `--yes`.
+The preview lifecycle does not require a repository `RAILWAY_API_TOKEN`, `LINK_PROJECT_ID`, `DUPLICATE_FROM_ID`, or a GitHub deployment environment. Do not reintroduce those solely to create or delete PR environments.
 
-The workflow uses `ghcr.io/railwayapp/cli:latest`, matching Railway's documented GitHub Actions pattern. It does not add repository or base-branch filters beyond the `pull_request_target` event itself.
-
-The existing CI workflow continues to run on pushes to `master`. Its `pull_request` trigger is intentionally not restricted to a particular base branch, so pull requests handled by the preview workflow continue to receive the repository's normal PR checks.
-
-Do not place production credentials in `staging`; preview environments inherit the copied staging configuration.
+Do not place production credentials in `staging`; preview environments inherit the base environment configuration. Railway also refuses to deploy a PR branch from an external GitHub user who is not authorized for the Railway project/workspace, so preview access should be granted deliberately rather than bypassed in repository automation.
 
 ## Preview verification
 
-After the workflow is present on `master`, verify with a test pull request that:
+After the native lifecycle is the only PR Environment mechanism on `master`, verify with a pull request that:
 
-1. Railway creates `pr-<number>` from the environment configured by `DUPLICATE_FROM_ID`.
+1. Railway creates exactly one PR Environment using `staging` as its base.
 2. PostgreSQL is isolated and has no public endpoint.
-3. `frontend` and `backend` use the PR head branch.
+3. `frontend` and `backend` deploy the pull-request branch.
 4. The backend migration and both healthchecks succeed.
 5. Only the frontend is public and it reaches the backend through the private BFF path.
 6. The repository's normal pull-request CI succeeds for the preview commit.
-7. Closing or merging the PR removes the preview environment.
+7. Closing or merging the PR removes the preview environment automatically.
 8. If preview account data exists, login, `/home`, and logout work through the frontend URL.
 
-Because `pull_request_target` loads its workflow from the base repository, merge the workflow change before performing the first end-to-end preview test.
+A pull request that removes the old `pull_request_target` workflow can still receive both preview environments because GitHub loads that workflow from the base branch. Use the first subsequent pull request after this change reaches `master` as the authoritative duplicate-prevention check.
 
 ## Railway configuration source
 
@@ -153,14 +149,12 @@ Do not add `railway.toml` or `railway.json` for new services. Railway has deprec
 - Railway private networking: https://docs.railway.com/networking/private-networking
 - Railway healthchecks: https://docs.railway.com/deployments/healthchecks
 - Railway pre-deploy commands: https://docs.railway.com/deployments/pre-deploy-command
-- Railway PR environments with GitHub Actions: https://docs.railway.com/cli/deploying#pr-environments-with-github-actions
+- Railway PR environments: https://docs.railway.com/guides/preview-deployments-with-pr-environments
+- Railway environments: https://docs.railway.com/environments
 - Railway GitHub autodeploys and Wait for CI: https://docs.railway.com/deployments/github-autodeploys
-- Railway API tokens: https://docs.railway.com/integrations/api
 - Railway production security guidance: https://docs.railway.com/guides/lock-down-production-project
 - Railway variables: https://docs.railway.com/variables
 - Railway Config as Code deprecation: https://docs.railway.com/config-as-code
-- GitHub secure `pull_request_target` usage: https://docs.github.com/en/actions/reference/security/securely-using-pull_request_target
-- GitHub deployment environments: https://docs.github.com/en/actions/reference/workflows-and-actions/deployments-and-environments
 - Next.js output tracing / standalone: https://nextjs.org/docs/app/api-reference/config/next-config-js/output
 - uv Docker integration: https://docs.astral.sh/uv/guides/integration/docker/
 - Django deployment checklist: https://docs.djangoproject.com/en/6.1/howto/deployment/checklist/
