@@ -108,33 +108,35 @@ Use Railway's PostgreSQL service and keep it private. Do not add a public TCP pr
 
 ## PR environments
 
-Itemshelf uses `.github/workflows/railway-pr-environment.yml` for Hobby-plan previews because Railway native PR Environments cannot deploy pull requests authored by `hamashou74-robot` without Railway project/workspace access. Keep Railway native **PR Environments** and **Bot PR Environments** disabled while this workflow owns the preview lifecycle.
+Itemshelf uses `.github/workflows/railway-pr-envs.yml` for Hobby-plan previews because Railway native PR Environments cannot deploy pull requests authored by `hamashou74-robot` without Railway project/workspace access. Keep Railway native **PR Environments** and **Bot PR Environments** disabled while this workflow owns the preview lifecycle.
 
 ### Required setup
 
-1. Create repository variables `RAILWAY_PROJECT_ID` and `RAILWAY_STAGING_ENVIRONMENT_ID` with the Itemshelf project ID and the persistent `staging` environment ID.
-2. Create a GitHub environment named `railway-pr-management` and allow only the `master` deployment branch.
-3. Create a Railway workspace token scoped to `HamaShou's Projects` and store it in that GitHub environment as `RAILWAY_API_TOKEN`, not as a repository secret. Current Railway token/security guidance prefers workspace-scoped credentials for shared CI; verify environment create/delete during the first preview because the older PR-environment guide still demonstrates an account token.
-4. Keep **Wait for CI** enabled on the Railway `frontend` and `backend` services.
+1. Create the repository variable `LINK_PROJECT_ID` with the Itemshelf Railway project ID.
+2. Create the repository variable `DUPLICATE_FROM_ID` with the persistent `staging` environment ID to copy.
+3. Create a GitHub environment named `railway-pr-environment`.
+4. Store the Railway credential in that GitHub environment as `RAILWAY_API_TOKEN`.
 
-The workflow follows Railway's documented create/delete job structure, but uses `pull_request_target` so the privileged workflow definition comes from the trusted base repository. It never checks out or executes pull-request code. Preview creation is limited to same-repository pull requests targeting `master`; cleanup runs on close even if the pull request was later retargeted.
+The workflow uses `pull_request_target` for `opened`, `reopened`, and `closed` events. Its jobs reference the GitHub environment with `deployment: false`, so the environment provides its protected configuration without creating a GitHub Deployment record. The workflow does not check out or execute pull-request code.
 
-When an eligible pull request is opened or reopened, the workflow copies `staging` to `pr-<number>` and changes both `frontend` and `backend` to the PR head branch. The copied PostgreSQL service and Railway reference variables remain isolated inside the preview environment. Closing or merging the pull request deletes the preview environment.
+On `opened` or `reopened`, the create job links the Railway project, creates `pr-<number>` by copying `DUPLICATE_FROM_ID`, and sets the copied `backend` and `frontend` services' `source.branch` values to `github.head_ref`. On `closed`, the delete job removes the corresponding preview environment non-interactively with `--yes`.
 
-CI also runs on pushes to `feature/**`, `fix/**`, and `chore/**` so Railway Wait for CI can evaluate the commit being deployed. The existing `pull_request` CI trigger remains unchanged.
+The workflow uses `ghcr.io/railwayapp/cli:latest`, matching Railway's documented GitHub Actions pattern. It does not add repository or base-branch filters beyond the `pull_request_target` event itself.
 
-Do not place production credentials in `staging`; preview environments inherit staging configuration.
+The existing CI workflow continues to run on pushes to `master`. Its `pull_request` trigger is intentionally not restricted to a particular base branch, so pull requests handled by the preview workflow continue to receive the repository's normal PR checks.
+
+Do not place production credentials in `staging`; preview environments inherit the copied staging configuration.
 
 ## Preview verification
 
-Before relying on the workflow, verify with a test pull request that:
+After the workflow is present on `master`, verify with a test pull request that:
 
-1. Railway creates `pr-<number>` from `staging`.
+1. Railway creates `pr-<number>` from the environment configured by `DUPLICATE_FROM_ID`.
 2. PostgreSQL is isolated and has no public endpoint.
 3. `frontend` and `backend` use the PR head branch.
 4. The backend migration and both healthchecks succeed.
 5. Only the frontend is public and it reaches the backend through the private BFF path.
-6. A later push waits for branch-head CI before Railway deploys it.
+6. The repository's normal pull-request CI succeeds for the preview commit.
 7. Closing or merging the PR removes the preview environment.
 8. If preview account data exists, login, `/home`, and logout work through the frontend URL.
 
