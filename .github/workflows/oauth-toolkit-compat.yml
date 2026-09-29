@@ -185,6 +185,8 @@ jobs:
 
           access_record = AccessToken.objects.get(token_checksum=access_checksum)
           refresh_record = RefreshToken.objects.get(token_checksum=refresh_checksum)
+          token_family = refresh_record.token_family
+          assert token_family is not None
           assert access_record.token == ""
           assert refresh_record.token == ""
           assert access_record.user == owner
@@ -211,6 +213,30 @@ jobs:
           assert refreshed.status_code == 200, refreshed.content
           refreshed_data = refreshed.json()
           assert refreshed_data["refresh_token"] != refresh_token
+
+          refreshed_checksum = hashlib.sha256(
+              refreshed_data["refresh_token"].encode()
+          ).hexdigest()
+          refreshed_record = RefreshToken.objects.get(
+              token_checksum=refreshed_checksum,
+              revoked__isnull=True,
+          )
+          assert refreshed_record.token_family == token_family
+
+          refreshed_access = refreshed_data["access_token"]
+          protected_after_rotation = Client().get(
+              "/protected",
+              HTTP_AUTHORIZATION=f"Bearer {refreshed_access}",
+          )
+          assert protected_after_rotation.status_code == 200
+
+          RefreshToken.revoke_family(token_family)
+
+          revoked_device_access = Client().get(
+              "/protected",
+              HTTP_AUTHORIZATION=f"Bearer {refreshed_access}",
+          )
+          assert revoked_device_access.status_code in (401, 403)
 
           print("Django OAuth Toolkit 3.4.1 compatibility smoke test passed")
           PY
