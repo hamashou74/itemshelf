@@ -2,7 +2,7 @@
 
 Itemshelf uses Docker as the repository-owned deployment runtime contract. Docker is not required for normal local development; the root `mise.toml` and `mise run dev` remain the canonical development workflow.
 
-The deployed application keeps the existing responsibility boundary:
+The current Railway deployment keeps the following service topology:
 
 ```text
 Browser
@@ -14,7 +14,9 @@ Django / DRF backend (private)
 PostgreSQL (private)
 ```
 
-The browser must not call Django directly. Do not add CORS relaxation or a generic Next.js proxy to support deployment.
+This topology describes the current Railway deployment, not the complete Itemshelf API client architecture. The Browser must continue to use the Next.js Web/BFF boundary, while first-party non-browser clients may be direct consumers of the Itemshelf API as defined in [`api-architecture.md`](api-architecture.md). The current Railway backend remains private, so direct non-BFF API access is not enabled by this document.
+
+Do not add CORS relaxation or a generic Next.js proxy merely to bypass the current deployment boundary.
 
 ## Build the images locally
 
@@ -42,7 +44,7 @@ DATABASE_URL='sqlite:///:memory:' \
 uv run python manage.py check --deploy --fail-level WARNING
 ```
 
-The deployment settings intentionally silence only `security.W004`, `security.W008`, `security.W012`, and `security.W016`. Those checks assume a browser-facing HTTPS Django service, while Itemshelf keeps Django private and Next.js reaches it over Railway's WireGuard-encrypted private HTTP network. HSTS, Django-side HTTP-to-HTTPS redirects, and browser `Secure` cookie transport flags therefore do not apply to this service boundary. Any other deployment warning remains unsilenced and fails the strict check above. Re-evaluate these silences if Django ever becomes browser-facing or the network boundary changes.
+The deployment settings intentionally silence only `security.W004`, `security.W008`, `security.W012`, and `security.W016`. Those checks assume a browser-facing HTTPS Django service, while Itemshelf keeps Django private and Next.js reaches it over Railway's WireGuard-encrypted private HTTP network. HSTS, Django-side HTTP-to-HTTPS redirects, and browser `Secure` cookie transport flags therefore do not apply to this service boundary. Any other deployment warning remains unsilenced and fails the strict check above. Re-evaluate these silences before enabling direct non-BFF API access or otherwise changing the network boundary.
 
 The Railway deployment itself validates PostgreSQL connectivity during the pre-deploy migration and again through the backend readiness healthcheck before the deployment becomes active.
 
