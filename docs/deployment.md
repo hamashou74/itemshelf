@@ -2,7 +2,43 @@
 
 Itemshelf uses Docker as the repository-owned deployment runtime contract. Docker is not required for normal local development; the root `mise.toml` and `mise run dev` remain the canonical development workflow.
 
-The current Railway deployment keeps the following service topology:
+## Deployment security contract
+
+The repository-owned Django deployment settings are platform-independent. A hosted platform, reverse proxy, or self-host ingress may implement the outer network boundary, but it must preserve the following contract:
+
+```text
+Public client
+   ↓ HTTPS
+Trusted TLS-terminating ingress
+   ├──→ Next.js Web / BFF
+   └──→ supported Itemshelf API ingress
+             ↓
+          Django / DRF
+             ↓ private network
+          PostgreSQL
+```
+
+The Django container port must not be reachable directly from the public Internet. Public requests must first pass through a trusted ingress that:
+
+- terminates TLS and exposes public application traffic only over HTTPS;
+- redirects public HTTP traffic to HTTPS before it reaches Django;
+- removes any client-supplied `X-Forwarded-Proto` value and sets it from the actual external connection;
+- preserves the original public `Host` value when forwarding a public API request;
+- applies HSTS at the public boundary only after the operator has confirmed that the affected hostname is HTTPS-only.
+
+Django uses `SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")` to interpret the trusted ingress scheme. This setting is safe only while untrusted clients cannot bypass the ingress and supply that header directly.
+
+Trusted private service-to-service traffic may use HTTP. This is intentional for environments such as Railway private networking and a future private Compose network. Therefore Django does not enable `SECURE_SSL_REDIRECT`; the public ingress owns HTTP-to-HTTPS redirect behavior. HSTS is also owned by the ingress so it can cover the complete public origin rather than only Django responses.
+
+Django always marks its session and CSRF cookies `Secure` in deployment settings. The current Web/BFF continues to keep Django session and CSRF transport on the server side; the Browser receives only the Next.js-owned browser session described in [`../frontend/README.md`](../frontend/README.md).
+
+`DJANGO_ALLOWED_HOSTS` remains deployment-provided. It must contain every hostname that can legitimately reach Django in that deployment, including required private service names or platform healthcheck hosts and, once enabled, the public API host presented by the trusted ingress. Do not use a wildcard merely to avoid maintaining this list.
+
+PostgreSQL remains private and must not be exposed as part of the public application ingress. The Browser continues to use the Next.js Web/BFF rather than Django directly, so first-party device/API access does not by itself require CORS. A future browser-to-Django cross-origin flow would require a separate explicit design.
+
+## Current Railway topology
+
+The current Railway staging deployment keeps the following topology:
 
 ```text
 Browser
@@ -14,7 +50,7 @@ Django / DRF backend (private)
 PostgreSQL (private)
 ```
 
-This topology describes the current Railway deployment, not the complete Itemshelf API client architecture. The Browser must continue to use the Next.js Web/BFF boundary, while first-party non-browser clients may be direct consumers of the Itemshelf API as defined in [`api-architecture.md`](api-architecture.md). The current Railway backend remains private, so direct non-BFF API access is not enabled by this document.
+This is the current deployment state, not the complete Itemshelf API client architecture. First-party non-browser clients may be direct consumers of the Itemshelf API as defined in [`api-architecture.md`](api-architecture.md), but the Railway backend remains private until device authentication and an intentional public ingress are implemented.
 
 Do not add CORS relaxation or a generic Next.js proxy merely to bypass the current deployment boundary.
 
@@ -44,7 +80,9 @@ DATABASE_URL='sqlite:///:memory:' \
 uv run python manage.py check --deploy --fail-level WARNING
 ```
 
-The deployment settings intentionally silence only `security.W004`, `security.W008`, `security.W012`, and `security.W016`. Those checks assume a browser-facing HTTPS Django service, while Itemshelf keeps Django private and Next.js reaches it over Railway's WireGuard-encrypted private HTTP network. HSTS, Django-side HTTP-to-HTTPS redirects, and browser `Secure` cookie transport flags therefore do not apply to this service boundary. Any other deployment warning remains unsilenced and fails the strict check above. Re-evaluate these silences before enabling direct non-BFF API access or otherwise changing the network boundary.
+The deployment settings intentionally silence only `security.W004` and `security.W008`. These correspond to HSTS and Django-side HTTP-to-HTTPS redirect, which the deployment security contract assigns to the trusted public ingress. `SESSION_COOKIE_SECURE` and `CSRF_COOKIE_SECURE` are enabled, so their deployment checks are no longer silenced. Any other deployment warning remains unsilenced and fails the strict check above.
+
+`SECURE_PROXY_SSL_HEADER` does not make arbitrary forwarded headers trustworthy. The ingress must strip a client-provided `X-Forwarded-Proto` value and set its own value, and the Django container must not be directly reachable by untrusted clients. Private Next.js/BFF-to-Django calls that legitimately use HTTP do not set `X-Forwarded-Proto: https` and are not redirected by Django.
 
 The Railway deployment itself validates PostgreSQL connectivity during the pre-deploy migration and again through the backend readiness healthcheck before the deployment becomes active.
 
