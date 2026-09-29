@@ -1,6 +1,6 @@
 # Device API Client Authentication
 
-This document defines authentication and credential lifecycle for first-party non-browser Itemshelf API clients such as a barcode scanner. The overall service boundary is defined in [`api-architecture.md`](api-architecture.md).
+This document defines authentication and credential lifecycle for first-party non-browser Itemshelf API clients such as a barcode scanner. The overall service boundary is defined in [`api-architecture.md`](api-architecture.md), and the HTTP/versioning/error contract is defined in [`api-contract.md`](api-contract.md).
 
 ## Decision
 
@@ -175,7 +175,7 @@ Device-capable endpoints require all of the following:
 
 OAuth scopes can only reduce what the owning user may do; they never grant permissions the user does not have.
 
-Itemshelf uses a **fixed, server-defined scope vocabulary**, not arbitrary user-defined or database-created scopes. Exact scope names and their endpoint mapping are finalized with the public API contract so that authentication design does not pre-empt the resource model.
+Itemshelf uses a **fixed, server-defined scope vocabulary**, not arbitrary user-defined or database-created scopes. The public API contract defines the initial scopes as `device:register`, `catalog:read`, `shelf:read`, and `shelf:write`, together with their authorization semantics.
 
 Account security, Web login/logout, device-management operations performed by the user, Django Admin, and other operator-only surfaces do not become accessible merely because a device has an OAuth token.
 
@@ -245,16 +245,15 @@ The initial design does not retain request payloads or a historical list of clie
 
 Only OAuth endpoints required by the selected first-party flows should be mounted/exposed.
 
-The implementation requires at least:
+The initial public protocol surface is fixed by the public API contract:
 
-- Device Authorization endpoint;
-- Token endpoint for device-code exchange and refresh;
-- the metadata needed by supported clients if discovery is adopted;
-- server-side revocation capability.
+- `POST /oauth/device-authorization` for the RFC 8628 Device Authorization Request;
+- `POST /oauth/token` for device-code exchange and refresh-token grants;
+- server-side token-family revocation through Itemshelf device-management operations.
 
-Generic application registration, dynamic client registration, authorization-code UI, password grant, implicit grant, OIDC, and unrelated management surfaces are not enabled merely because DOT provides them.
+OAuth authorization-server discovery is not required for the initial first-party scanner. If it is added later, the well-known metadata path and issuer semantics must follow the applicable RFC.
 
-The exact externally visible paths are part of the public API/deployment contract and are finalized in follow-up design.
+Generic application registration, dynamic client registration, authorization-code UI, password grant, implicit grant, OIDC, token introspection, public token revocation, and unrelated management surfaces are not enabled merely because DOT provides them.
 
 ## Alternatives considered
 
@@ -286,7 +285,7 @@ Itemshelf does not implement Device Authorization Grant itself. The security-sen
 
 ## Implementation boundary
 
-This document selects the authentication protocol and lifecycle but does not finalize the public API contract.
+This document selects the authentication protocol and lifecycle. The public HTTP contract is finalized separately in [`api-contract.md`](api-contract.md) and is a prerequisite for the implementation below.
 
 A follow-up implementation issue should add:
 
@@ -303,7 +302,7 @@ A follow-up implementation issue should add:
 - OpenAPI representation of OAuth bearer authentication;
 - focused compatibility and lifecycle tests using the repository's supported Python/Django/DRF versions.
 
-Endpoint paths, common error representation, API versioning, and exact scope names belong to the public API-contract design.
+Endpoint paths, common error representation, API versioning, and exact scope names must follow [`api-contract.md`](api-contract.md).
 
 ## References
 

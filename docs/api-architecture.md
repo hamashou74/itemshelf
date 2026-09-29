@@ -50,7 +50,7 @@ Django/DRF:
 - is the only application service that reads or writes domain data in PostgreSQL;
 - may support more than one authentication scheme when different first-party client classes require it.
 
-The current default `SessionAuthentication` remains the Web application's backend authentication mechanism. First-party device/API-client authentication is defined separately in [`device-authentication.md`](device-authentication.md).
+The current default `SessionAuthentication` remains the Web application's backend authentication mechanism. First-party device/API-client authentication is defined separately in [`device-authentication.md`](device-authentication.md). URL versioning, common errors, pagination, resource identifiers, OAuth scope names, and compatibility guarantees are defined in [`api-contract.md`](api-contract.md).
 
 ### PostgreSQL
 
@@ -64,6 +64,8 @@ The Next.js Orval client is one generated consumer of this contract. The schema 
 
 Changes to the API contract must be made at the Django/DRF boundary and reflected in the generated OpenAPI schema. Client-specific adapters may map that contract into UI-specific models or errors without redefining the domain API.
 
+The normative HTTP-level rules for that contract are defined in [`api-contract.md`](api-contract.md).
+
 ## Current deployment versus logical architecture
 
 The current Railway deployment keeps Django on Railway private networking and exposes only Next.js publicly. Therefore, a barcode scanner or other non-BFF client cannot use the Itemshelf API directly in the current deployment.
@@ -72,9 +74,8 @@ That is a deployment limitation, not a permanent architectural constraint. Enabl
 
 ## Out of scope
 
-Device/API-client credential design is defined in [`device-authentication.md`](device-authentication.md). This architecture decision still does not define:
+Device/API-client credential design is defined in [`device-authentication.md`](device-authentication.md), and the HTTP API contract is defined in [`api-contract.md`](api-contract.md). This architecture decision still does not define:
 
-- API URL versioning, compatibility guarantees, pagination, or canonical error representation;
 - CORS policy, reverse proxy selection, TLS termination, public ingress, or trusted-proxy settings;
 - Docker Compose/self-host deployment details;
 - a third-party public developer API.
@@ -86,7 +87,7 @@ Those concerns are follow-up design tasks and must not be inferred from this doc
 - The existing Web/BFF boundary remains valid: Browser product flows continue through Next.js.
 - Django/DRF must be designed as an independently consumable domain API rather than as a permanently private implementation detail of Next.js.
 - Device authentication is added at the DRF authentication boundary without replacing the Web application's session-based flow.
-- API compatibility decisions become relevant beyond the Web frontend and are handled in the public API contract task.
+- API compatibility decisions beyond the Web frontend follow the versioning and compatibility rules in [`api-contract.md`](api-contract.md).
 - Deployment/security settings that assume Django is permanently private must be revisited before direct non-BFF clients are enabled.
 
 ## References
