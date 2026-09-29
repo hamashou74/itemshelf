@@ -83,6 +83,7 @@ uv run python manage.py check --deploy --fail-level WARNING
 The deployment settings intentionally silence only `security.W004` and `security.W008`. These correspond to HSTS and Django-side HTTP-to-HTTPS redirect, which the deployment security contract assigns to the trusted public ingress. `SESSION_COOKIE_SECURE` and `CSRF_COOKIE_SECURE` are enabled, so their deployment checks are no longer silenced. Any other deployment warning remains unsilenced and fails the strict check above.
 
 `SECURE_PROXY_SSL_HEADER` does not make arbitrary forwarded headers trustworthy. The ingress must strip a client-provided `X-Forwarded-Proto` value and set its own value, and the Django container must not be directly reachable by untrusted clients. Private Next.js/BFF-to-Django calls that legitimately use HTTP do not set `X-Forwarded-Proto: https` and are not redirected by Django.
+
 The Railway deployment itself validates PostgreSQL connectivity during the pre-deploy migration and again through the backend readiness healthcheck before the deployment becomes active.
 
 ## Railway staging topology
