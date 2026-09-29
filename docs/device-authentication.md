@@ -65,6 +65,8 @@ DOT 3.4.1 also contains an upstream fix specifically for a Django 6.1 system-che
 
 The implementation must retain focused compatibility tests so a future Django, DRF, Python, or DOT upgrade cannot silently break the supported device flow. An upgrade to any of those components requires those tests to pass before merge.
 
+Itemshelf also relies on DOT's `token_family` model field as the stable server-side identifier for one device authorization. That identifier is a DOT integration point, not an OAuth protocol identifier exposed to the scanner. Because this design depends on that library-level contract, the initial implementation pins the directly tested DOT 3.4.1 release. A DOT upgrade requires re-running the compatibility suite and reviewing token-family semantics before changing the pin.
+
 ## OAuth client model
 
 Itemshelf operates a server-managed **public OAuth client** for the official scanner client.
