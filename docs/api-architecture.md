@@ -50,7 +50,7 @@ Django/DRF:
 - is the only application service that reads or writes domain data in PostgreSQL;
 - may support more than one authentication scheme when different first-party client classes require it.
 
-The current default `SessionAuthentication` remains the Web application's backend authentication mechanism. Authentication for device/API clients is a separate design decision and is not defined here.
+The current default `SessionAuthentication` remains the Web application's backend authentication mechanism. First-party device/API-client authentication is defined separately in [`device-authentication.md`](device-authentication.md).
 
 ### PostgreSQL
 
@@ -72,10 +72,8 @@ That is a deployment limitation, not a permanent architectural constraint. Enabl
 
 ## Out of scope
 
-This decision intentionally does not define:
+Device/API-client credential design is defined in [`device-authentication.md`](device-authentication.md). This architecture decision still does not define:
 
-- the credential format or authentication mechanism for device/API clients;
-- credential issuance, revocation, rotation, scopes, or device registration;
 - API URL versioning, compatibility guarantees, pagination, or canonical error representation;
 - CORS policy, reverse proxy selection, TLS termination, public ingress, or trusted-proxy settings;
 - Docker Compose/self-host deployment details;
@@ -87,7 +85,7 @@ Those concerns are follow-up design tasks and must not be inferred from this doc
 
 - The existing Web/BFF boundary remains valid: Browser product flows continue through Next.js.
 - Django/DRF must be designed as an independently consumable domain API rather than as a permanently private implementation detail of Next.js.
-- Future device authentication can be added at the DRF authentication boundary without replacing the Web application's session-based flow.
+- Device authentication is added at the DRF authentication boundary without replacing the Web application's session-based flow.
 - API compatibility decisions become relevant beyond the Web frontend and are handled in the public API contract task.
 - Deployment/security settings that assume Django is permanently private must be revisited before direct non-BFF clients are enabled.
 
