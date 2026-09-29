@@ -16,6 +16,21 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: itemshelf
+          POSTGRES_USER: itemshelf
+          POSTGRES_PASSWORD: itemshelf
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U itemshelf -d itemshelf"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7.0.1
@@ -34,6 +49,7 @@ jobs:
       - name: Run compatibility smoke test
         env:
           DJANGO_SETTINGS_MODULE: config.settings.oauth_toolkit_compat
+          DATABASE_URL: postgresql://itemshelf:itemshelf@127.0.0.1:5432/itemshelf
         run: |
           cd backend
 
