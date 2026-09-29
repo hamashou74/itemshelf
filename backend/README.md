@@ -46,7 +46,7 @@ Other backend tasks defined in `pyproject.toml`, including `lint`, `format`, `fo
 
 ## API Schema
 
-`backend/schema.yaml` is the source of truth for the frontend-to-backend API contract.
+`backend/schema.yaml` is the machine-readable source of truth for the Itemshelf API contract. The Next.js web application is one first-party consumer; other first-party API clients may consume the same contract where their authentication and deployment requirements allow it.
 
 Generate and validate the schema directly with:
 
