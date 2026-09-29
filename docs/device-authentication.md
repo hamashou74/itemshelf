@@ -1,237 +1,315 @@
 # Device API Client Authentication
 
-This document defines the authentication and credential lifecycle for first-party non-browser Itemshelf API clients, such as a barcode-scanner device. The overall service boundary is defined in [`api-architecture.md`](api-architecture.md).
+This document defines authentication and credential lifecycle for first-party non-browser Itemshelf API clients such as a barcode scanner. The overall service boundary is defined in [`api-architecture.md`](api-architecture.md).
 
 ## Decision
 
 The Itemshelf Web/BFF continues to use Django `SessionAuthentication`.
 
-First-party devices use an Itemshelf-owned **opaque bearer device credential** implemented through Django REST framework's custom authentication extension point.
+First-party input-constrained devices use **OAuth 2.0 Device Authorization Grant (RFC 8628)** implemented with **Django OAuth Toolkit (DOT)**.
 
-A credential belongs to a `Device`, and a `Device` belongs to exactly one Itemshelf user:
+The device stores OAuth access and refresh tokens, never the user's Itemshelf username/password. Access tokens are sent as bearer credentials in the HTTP `Authorization` header.
+
+Itemshelf keeps a small product-level `Device` record for physical-device lifecycle and auditing. One Device is bound to one DOT refresh-token family:
 
 ```text
-User
-  |
-  +-- Device
-       |
-       +-- DeviceCredential (active)
-       +-- DeviceCredential (active during rotation)
-       +-- DeviceCredential (revoked)
+Itemshelf User
+      |
+      +-- Device
+            |
+            +-- OAuth refresh-token family
+                    |
+                    +-- short-lived Access Token
+                    +-- rotating Refresh Token
 ```
 
-The device credential authenticates both the device identity and the owning user. It does not create a second user identity system.
+Refresh-token rotation does not create a new Device identity because DOT preserves the same `token_family` UUID across rotations.
 
-## Credential transport
+## Why OAuth Device Authorization Grant
 
-A device sends its credential only in the HTTP `Authorization` header:
+The scanner is an Internet-connected first-party device whose input and browser capabilities may be constrained. RFC 8628 is specifically designed for this class of client: the device initiates authorization, the user completes authorization with a browser on another device, and the scanner polls the token endpoint until the authorization is approved or denied.
 
-```http
-Authorization: Bearer its_dev_<credential-id>.<secret>
+Using DOT avoids Itemshelf owning security-sensitive protocol machinery that already exists in a mature OAuth implementation, including:
+
+- device authorization codes and polling semantics;
+- access and refresh token issuance;
+- refresh-token rotation;
+- refresh-token replay detection and token-family revocation;
+- OAuth scopes;
+- token revocation;
+- DRF OAuth bearer authentication;
+- RFC 9700-compliant token storage that does not persist reusable token values in plaintext.
+
+## Runtime compatibility policy
+
+DOT 3.4.1 does not yet list Django 6.1 in its published support matrix. That fact is treated as a maintenance-risk signal, not an automatic blocker.
+
+Itemshelf accepts a dependency outside its declared matrix when compatibility is demonstrated against the repository's actual supported runtime and protected by project tests.
+
+For DOT 3.4.1, compatibility was verified in Itemshelf PR #101 using:
+
+- Python 3.14;
+- Django 6.1;
+- Django REST framework 3.18;
+- DOT installation alongside the Itemshelf locked environment;
+- DOT migrations and Django system checks;
+- complete Device Authorization Grant initiation and user approval;
+- access-token and refresh-token issuance;
+- DRF `OAuth2Authentication` with scope enforcement;
+- RFC 9700 hashed-at-rest token storage;
+- refresh-token rotation;
+- stable `token_family` identity across rotation;
+- token-family revocation invalidating the device's access token.
+
+DOT 3.4.1 also contains an upstream fix specifically for a Django 6.1 system-check behavior change. Therefore the absence of a Django 6.1 classifier/test-matrix row is not evidence that this release is unaware of Django 6.1.
+
+The implementation must retain focused compatibility tests so a future Django, DRF, Python, or DOT upgrade cannot silently break the supported device flow. An upgrade to any of those components requires those tests to pass before merge.
+
+## OAuth client model
+
+Itemshelf operates a server-managed **public OAuth client** for the official scanner client.
+
+The client uses DOT's Device Code grant type and does not rely on a client secret stored on the physical scanner. The OAuth client registration represents the Itemshelf scanner software/protocol, not an individual physical device.
+
+Physical device identity is represented by the Itemshelf `Device` model and the OAuth refresh-token family created by an individual successful authorization.
+
+Itemshelf does not enable generic third-party OAuth client registration as part of this design.
+
+## Browser/BFF authorization boundary
+
+Adopting OAuth does not change the Web architecture decision that normal browser product flows go through Next.js/BFF.
+
+DOT's built-in `/o/device` confirmation pages require a Django browser session. Itemshelf does not use those pages as its product authorization UI because the Browser does not own Django's `sessionid`.
+
+Instead:
+
+```text
+Scanner
+   |
+   | device authorization request
+   v
+Django / DOT
+   |
+   | verification_uri
+   v
+Next.js device authorization page
+   |
+   | Server Action + backend session
+   v
+Django device-approval API
+   |
+   v
+DOT DeviceGrant
 ```
 
-The exact serialized lengths are an implementation detail, but the format has these properties:
+The scanner-facing device authorization and token endpoints are publicly reachable API endpoints.
 
-- `its_dev_` is a non-secret Itemshelf device-token prefix for identification and diagnostics.
-- `credential-id` is a random public identifier used for indexed lookup.
-- `secret` is generated by the server from at least 256 bits of cryptographically secure randomness.
-- the complete plaintext credential is returned only at creation time and cannot be retrieved later.
+The verification URI points to an explicit Next.js page. That page uses the existing Web/BFF session and server-side backend transport. A dedicated session-authenticated Django API reads the pending DeviceGrant and approves or denies it.
 
-Device credentials must not be accepted from URL query parameters, cookies, or application request bodies.
+The approval API must perform the equivalent security checks required by the DOT flow:
 
-Bearer credentials are valid only over HTTPS. Clients must validate the server certificate and must not send the credential to an untrusted origin.
+- the user code exists;
+- the grant is still pending;
+- the grant has not expired;
+- the authenticated user is the user approving the grant;
+- the requested scopes shown to the user are the scopes that will be authorized;
+- approval/denial is atomic so the same grant cannot be claimed by two users.
 
-## Stored representation
+The generic DOT HTML authorization pages do not need to be exposed as Itemshelf product UI.
 
-The database must never store the plaintext device secret.
+## Device registration and token-family binding
 
-The credential record stores a cryptographic digest of the high-entropy random secret. Because the input is server-generated with at least 256 bits of entropy rather than a human password, a fast cryptographic digest such as SHA-256 is sufficient for one-way storage; authentication compares digests in constant time.
+A successful OAuth device flow creates an access token and a refresh-token family but does not by itself create Itemshelf product metadata for the physical scanner.
 
-The public credential identifier and non-secret metadata may be stored in plaintext.
+After receiving its first token pair, the scanner calls the explicit Itemshelf device-registration endpoint.
 
-The implementation must ensure that request logging, exception reporting, tracing, and audit logs do not record the `Authorization` value or plaintext credential.
+That endpoint:
 
-## Data ownership
+1. authenticates the OAuth access token;
+2. resolves the current refresh token associated with the access token;
+3. obtains the stable DOT `token_family` UUID;
+4. creates an Itemshelf Device owned by `request.user`;
+5. binds that Device to the token family;
+6. records user-visible device metadata such as its name.
 
-Device authentication belongs in a dedicated backend domain/app (provisionally `devices`) rather than adding token fields directly to `User`.
+A token family that is not yet bound to an active Device may access only the device-registration operation. All other device-capable Itemshelf endpoints require an active Device binding.
 
-The minimum logical records are:
+The minimum logical Device record is:
 
-### Device
+- `id`: random UUID;
+- `user`: owning Itemshelf user;
+- `token_family`: unique OAuth refresh-token-family UUID;
+- `name`: user-visible device name;
+- `created_at`;
+- `revoked_at`: null while active;
+- `last_used_at`: best-effort audit timestamp.
 
-- `id`: random UUID
-- `user`: owning Itemshelf user
-- `name`: user-visible device name
-- `created_at`
-- `revoked_at`: null while the device is enabled
-
-### DeviceCredential
-
-- `id`: random public credential identifier
-- `device`: owning Device
-- `secret_digest`
-- `created_at`
-- `revoked_at`: null while this credential is enabled
-- `expires_at`: optional; no mandatory expiry policy in the initial design
-- `last_used_at`: best-effort audit timestamp
-
-Multiple active credentials are allowed temporarily for one device so credentials can be rotated without requiring an atomic cutover.
+A complete re-authorization creates a new token family. Refresh-token rotation within an authorization keeps the existing family and therefore keeps the same Device binding.
 
 ## Authentication mapping
 
-The implementation provides a custom DRF authenticator, conceptually `DeviceCredentialAuthentication`.
+Device-capable DRF endpoints use DOT's `OAuth2Authentication`.
 
-For a valid device credential:
+For a valid OAuth access token:
 
-- `request.user` is the user that owns the device.
-- `request.auth` identifies the authenticated device credential and therefore the device.
-- an inactive user fails authentication.
-- a revoked device fails authentication even if an individual credential has not separately been revoked.
-- a revoked or expired credential fails authentication.
+- `request.user` is the Itemshelf user who authorized the device;
+- `request.auth` is the DOT access-token object;
+- the Itemshelf device layer resolves the corresponding token family and active Device.
 
-Session authentication and device authentication remain independent. The existing browser/Web authentication endpoints remain session-oriented and are not converted to bearer-token login endpoints.
+The existing browser/Web authentication endpoints remain session-oriented. They are not converted to OAuth token login endpoints.
 
-Bearer-authenticated requests do not use Django session CSRF credentials. This does not change the CSRF requirements of session-authenticated requests.
+OAuth bearer requests do not use Django session CSRF credentials. This does not change CSRF requirements for session-authenticated requests.
 
-## Authorization boundary
+## Authorization and scopes
 
-Authentication does not by itself grant access to the whole Itemshelf API.
+OAuth authentication does not grant unrestricted API access.
 
-A device credential is accepted only by API endpoints that explicitly support first-party device clients. Account security, Web login/logout, credential management, Django Admin, and other operator/user-management endpoints do not accept device credentials.
+Device-capable endpoints require all of the following:
 
-Within a device-capable endpoint, the authenticated device acts on behalf of its owning user and is still constrained by the normal user/object authorization rules. A device credential must never grant permissions that the owning user does not have.
+1. a valid OAuth access token;
+2. an active Itemshelf Device bound to that token family;
+3. the endpoint's required OAuth scope;
+4. the normal user/object authorization rules.
 
-### Dynamic scopes
+OAuth scopes can only reduce what the owning user may do; they never grant permissions the user does not have.
 
-Itemshelf does **not** introduce a database-backed arbitrary scope system in the initial device-authentication implementation.
+Itemshelf uses a **fixed, server-defined scope vocabulary**, not arbitrary user-defined or database-created scopes. Exact scope names and their endpoint mapping are finalized with the public API contract so that authentication design does not pre-empt the resource model.
 
-The initial privilege boundary is the explicit set of endpoints that accept `DeviceCredentialAuthentication`, combined with normal user/object permissions. This is simpler and more reviewable while there is only one concrete first-party device class.
+Account security, Web login/logout, device-management operations performed by the user, Django Admin, and other operator-only surfaces do not become accessible merely because a device has an OAuth token.
 
-If future clients need materially different privilege sets, add explicit credential scopes then. Scope values must be server-defined capabilities and must only reduce, never expand, the owning user's authorization.
+## Token storage and transport
 
-## Issuance and provisioning
+Access tokens are sent only as bearer tokens in the HTTP `Authorization` header and only over HTTPS.
 
-Initial device registration is initiated by an already authenticated user through the Web/BFF.
+Itemshelf enables DOT's RFC 9700-compliant token-storage mode so reusable access and refresh token values are not stored in plaintext in the database. Token lookup uses their checksums.
 
-The backend:
+The scanner must validate the server certificate and must not send bearer credentials to an untrusted origin.
 
-1. creates the Device;
-2. creates a DeviceCredential;
-3. returns the complete plaintext credential exactly once;
-4. stores only the credential digest and metadata.
+Application logs, exception reporting, tracing, and audit logs must not record `Authorization` values, device codes, access tokens, or refresh tokens.
 
-The user then provisions the credential onto the physical device using an appropriate secure mechanism. QR code, local configuration, or another provisioning transport may be chosen by the scanner implementation; the authentication protocol does not require one specific transport.
+## Access-token lifetime
 
-The scanner must not store the user's username or password and must not be permitted to create additional device credentials.
+Access tokens are short-lived. The scanner refreshes them without requiring the user to repeat the browser authorization flow.
+
+The concrete access-token lifetime is a security/operations setting chosen during implementation and validated with the scanner behavior. It must not be treated as a permanent device identity.
+
+The Device is identified by the token family, not by a particular access-token value.
+
+## Refresh-token rotation and replay protection
+
+DOT refresh-token rotation remains enabled.
+
+Itemshelf also enables refresh-token reuse protection. Reuse of a superseded refresh token outside the configured immediate retry allowance revokes the token family, requiring the device to be authorized again.
+
+A small grace period may be configured for the immediately preceding refresh token so a lost refresh response does not strand the scanner during transient network failure. DOT 3.4.1 constrains that grace behavior to the immediately preceding generation; older replay still triggers family protection.
+
+A refresh-token secret is never treated as the Device identifier. Rotation may replace the secret while preserving the Device's `token_family`.
 
 ## Revocation and lost devices
 
-Credential and device revocation are separate operations.
+Device revocation is an Itemshelf operation initiated by the user through the Web/BFF.
 
-Revoking one credential invalidates only that credential. Revoking a device invalidates every credential belonging to that device, including credentials that were issued earlier and not individually revoked.
+Revoking a Device:
 
-The normal lost-device response is therefore to revoke the Device, not merely the credential currently known to the operator.
+1. marks the Device revoked;
+2. revokes the DOT refresh-token family;
+3. invalidates the family's live access tokens.
 
-Revoked records are retained as audit data rather than immediately hard-deleted.
+This is the normal lost-device response.
 
-Setting the owning user inactive invalidates all of that user's device credentials at authentication time.
+The revoked Device record is retained as audit history rather than immediately hard-deleted.
 
-Password/session lifecycle and device-credential lifecycle are intentionally separate. A password change or Web logout does not silently rotate or recreate device credentials. A future account-security policy may explicitly revoke all devices when a specific security event requires it.
+A device permission check also rejects a revoked Device even if a concurrent request races with token revocation.
 
-## Rotation
+An inactive owning user cannot use device access through Itemshelf. Account-wide security operations may explicitly revoke all of a user's Devices; Web logout or an ordinary Web session expiry does not silently destroy independent device authorizations.
 
-Rotation is performed without reusing or revealing the previous secret:
+## Re-authorization
 
-1. issue a second credential for the existing Device;
-2. provision the new credential to the device;
-3. verify the device works with the new credential;
-4. revoke the previous credential.
+If a refresh-token family expires, is revoked, or is invalidated because refresh-token reuse is detected, the scanner repeats the Device Authorization Grant.
 
-This permits bounded operational overlap without requiring the old credential to remain the permanent identity of the device.
+A complete re-authorization produces a new token family. The previous revoked Device/authorization history is not silently reactivated.
 
-A credential secret is never changed in place.
-
-## Expiration
-
-The initial design does not require a fixed automatic expiry for device credentials.
-
-A fixed short lifetime without a refresh or re-authorization protocol would cause unattended first-party hardware to fail predictably and would not provide a usable recovery path. The model retains an optional `expires_at` so deployments or later protocol revisions can impose a lifetime.
-
-If the threat model later requires short-lived access tokens, refresh-token rotation, sender-constrained tokens, or standardized user/device authorization, the authentication boundary can be upgraded without changing the owning User/Device relationship.
+If a future product requirement needs stable hardware identity across repeated OAuth authorizations, add a separate installation/hardware identifier. OAuth token values themselves must not be used as hardware identity.
 
 ## Last-used auditing
 
-A successful device-authenticated request updates `last_used_at` on a best-effort basis.
+A successful device-authenticated Itemshelf API request updates the Device's `last_used_at` on a best-effort basis.
 
-The implementation must avoid a database write on every scan/request. The update should be write-throttled so that `last_used_at` remains operationally useful without becoming a hot write path. The exact coalescing interval is an implementation detail.
+The implementation must not write this field on every scan/request. Updates are coalesced or write-throttled so the field remains operationally useful without becoming a hot database write path.
 
-The initial design does not retain client IP history or request payloads as credential audit metadata.
+The initial design does not retain request payloads or a historical list of client IP addresses as credential audit metadata.
+
+## Public OAuth surface
+
+Only OAuth endpoints required by the selected first-party flows should be mounted/exposed.
+
+The implementation requires at least:
+
+- Device Authorization endpoint;
+- Token endpoint for device-code exchange and refresh;
+- the metadata needed by supported clients if discovery is adopted;
+- server-side revocation capability.
+
+Generic application registration, dynamic client registration, authorization-code UI, password grant, implicit grant, OIDC, and unrelated management surfaces are not enabled merely because DOT provides them.
+
+The exact externally visible paths are part of the public API/deployment contract and are finalized in follow-up design.
 
 ## Alternatives considered
 
+### Itemshelf-owned opaque DeviceCredential
+
+A project-owned opaque credential can model Device ownership and revocation directly and remains a viable fallback.
+
+It is not the selected default because, once DOT compatibility was verified, doing so would make Itemshelf own device pairing, refresh/rotation behavior, replay handling, OAuth-like scopes, and credential lifecycle that are already implemented by a standard protocol and maintained library.
+
 ### DRF TokenAuthentication
 
-DRF's built-in token authentication is intentionally simple and is limited to one token per user. It does not represent a separate Device lifecycle and does not provide the revocation/rotation/audit model required here.
-
-It is therefore not used as the device credential store.
+DRF's built-in token authentication is intentionally simple and does not provide the browser-assisted device authorization, refresh-token rotation, token-family replay protection, or first-class scope model needed here.
 
 ### Django-Rest-Knox
 
-Knox is close to the desired mechanics: multiple tokens per user, hashed token storage, expiry support, and server-side revocation.
+Knox provides multiple server-side tokens, hashed token storage, expiry, and revocation.
 
-However, the current Knox test matrix supports Django through 6.0 while Itemshelf currently requires Django 6.1 or newer. Itemshelf does not add an authentication dependency outside its documented support matrix merely to avoid a small project-owned model and DRF authenticator.
-
-Re-evaluate Knox at implementation time if it adds official support for the repository's then-current Django version and its model still fits the Device ownership requirement.
+It does not provide the RFC 8628 Device Authorization Grant. Itemshelf would still need to invent the browser-assisted pairing protocol and the relationship between a physical scanner and its token lifecycle. Therefore it is not preferred even if it proves compatible with Django 6.1.
 
 ### JWT / Simple JWT
 
-JWTs are not selected for first-party device credentials.
+JWT is not selected for scanner authentication.
 
-Itemshelf needs immediate per-device revocation, server-side device status, last-used auditing, and deliberate rotation. Those requirements already require server-side state, so stateless JWT validation does not remove a meaningful database dependency. Refresh-token rotation and blacklisting would add another lifecycle to operate.
+Itemshelf requires immediate lost-device revocation, stable server-side Device state, audit metadata, and browser-assisted device authorization. Those requirements already require server-side state, reducing the value of stateless JWT validation. Simple JWT also does not provide RFC 8628 device authorization.
 
-The currently released Simple JWT compatibility matrix also lags Itemshelf's Django/Python/DRF versions.
+### Custom implementation of RFC 8628
 
-### OAuth 2.0 Device Authorization Grant
-
-OAuth 2.0 Device Authorization Grant is a strong standardized option for input-constrained devices and closely matches a future browser-assisted pairing flow.
-
-Django OAuth Toolkit supports Device Authorization Grant, token revocation, and scopes. However, its current stable release officially supports Django through 6.0, while Itemshelf currently requires Django 6.1 or newer.
-
-Itemshelf therefore does not introduce an OAuth authorization server in this phase. Revisit OAuth Device Authorization if one of these becomes true:
-
-- a supported Django OAuth implementation matches Itemshelf's runtime;
-- third-party clients are introduced;
-- standardized delegated authorization becomes a product requirement;
-- scanner provisioning needs browser-assisted device-code pairing rather than operator provisioning.
-
-### Sender-constrained credentials
-
-mTLS, DPoP, or a device public/private key can reduce replay risk if a bearer credential is stolen. They also add key provisioning, rotation, client implementation, and deployment requirements.
-
-They are not required for the current first-party scanner threat model. Revisit them if devices gain secure hardware-backed key storage or the exposure/risk profile increases.
+Itemshelf does not implement Device Authorization Grant itself. The security-sensitive protocol and token lifecycle are delegated to DOT, with Itemshelf adding only the BFF integration and Device-domain binding required by its architecture.
 
 ## Implementation boundary
 
-This document decides the authentication model, not the concrete API contract.
+This document selects the authentication protocol and lifecycle but does not finalize the public API contract.
 
 A follow-up implementation issue should add:
 
-- Device and DeviceCredential persistence;
-- secure credential generation and digest verification;
-- the DRF device authenticator;
-- session-authenticated device-management operations;
-- revocation and rotation behavior;
-- OpenAPI representation for device bearer authentication;
-- focused authentication, revocation, rotation, and authorization tests.
+- the tested DOT dependency;
+- `oauth2_provider` application configuration and migrations;
+- a server-managed public Device Code OAuth application for the official scanner;
+- RFC 9700-compliant token-storage and refresh-reuse settings;
+- only the required OAuth URL surface;
+- the session-authenticated backend DeviceGrant approval/denial API used by Next.js;
+- the Next.js verification/approval UI;
+- the Itemshelf Device model bound to DOT `token_family`;
+- device registration, revocation, active-device permission checks, and throttled last-used auditing;
+- DRF OAuth2 authentication and fixed-scope enforcement on device-capable endpoints;
+- OpenAPI representation of OAuth bearer authentication;
+- focused compatibility and lifecycle tests using the repository's supported Python/Django/DRF versions.
 
-Endpoint paths, shared error representation, API versioning, and the exact unauthenticated/forbidden response contract belong to the public API-contract design.
+Endpoint paths, common error representation, API versioning, and exact scope names belong to the public API-contract design.
 
 ## References
 
-- Django REST framework: [Authentication](https://www.django-rest-framework.org/api-guide/authentication/)
-- Django REST framework: [Permissions](https://www.django-rest-framework.org/api-guide/permissions/)
-- RFC 6750: [The OAuth 2.0 Authorization Framework: Bearer Token Usage](https://datatracker.ietf.org/doc/html/rfc6750)
+- RFC 8628: [OAuth 2.0 Device Authorization Grant](https://datatracker.ietf.org/doc/html/rfc8628)
+- RFC 6750: [OAuth 2.0 Bearer Token Usage](https://datatracker.ietf.org/doc/html/rfc6750)
+- RFC 7009: [OAuth 2.0 Token Revocation](https://datatracker.ietf.org/doc/html/rfc7009)
 - RFC 9700: [Best Current Practice for OAuth 2.0 Security](https://datatracker.ietf.org/doc/html/rfc9700)
-- Django-Rest-Knox: [Documentation](https://jazzband.github.io/django-rest-knox/)
 - Django OAuth Toolkit: [Device authorization grant flow](https://django-oauth-toolkit.readthedocs.io/en/stable/tutorial/tutorial_06.html)
-- Simple JWT: [Documentation](https://django-rest-framework-simplejwt.readthedocs.io/en/stable/)
+- Django OAuth Toolkit: [Settings](https://django-oauth-toolkit.readthedocs.io/en/stable/settings.html)
+- Django OAuth Toolkit: [Security](https://django-oauth-toolkit.readthedocs.io/en/stable/security.html)
+- Django REST framework: [Authentication](https://www.django-rest-framework.org/api-guide/authentication/)
