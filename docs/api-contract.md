@@ -162,23 +162,27 @@ The canonical common members are:
 
 Clients must branch primarily on HTTP status and `type`. They must not parse human-readable `title` or `detail` strings.
 
-Until Itemshelf owns a stable public documentation origin for resolvable problem-type URLs, project-specific types use stable absolute URNs:
+Problem-type identifiers use resolvable HTTPS URLs. Until Itemshelf has a separate stable documentation origin, the canonical registry is this repository document:
 
-```text
-urn:itemshelf:problem:validation-error
-urn:itemshelf:problem:csrf-failed
-urn:itemshelf:problem:permission-denied
-```
+| Problem | Type URI | Recommended status |
+|---|---|---:|
+| Validation error | `https://github.com/hamashou74/itemshelf/blob/master/docs/api-contract.md#validation-error` | 400 |
+| CSRF failure | `https://github.com/hamashou74/itemshelf/blob/master/docs/api-contract.md#csrf-failed` | 403 |
+| Permission denied | `https://github.com/hamashou74/itemshelf/blob/master/docs/api-contract.md#permission-denied` | 403 |
 
-Changing the URI that identifies an existing problem type is a breaking API change.
+An ordinary HTTP error that needs no Itemshelf-specific semantics may use RFC 9457 `about:blank`.
+
+Changing the URI that identifies an existing problem type is a breaking API change. If Itemshelf later adopts another documentation origin, existing type URIs remain valid identifiers for v1 rather than being silently rewritten.
 
 ### Validation errors
+
+#### validation-error
 
 Request validation failures use HTTP `400 Bad Request` and:
 
 ```json
 {
-  "type": "urn:itemshelf:problem:validation-error",
+  "type": "https://github.com/hamashou74/itemshelf/blob/master/docs/api-contract.md#validation-error",
   "title": "Request validation failed",
   "status": 400,
   "detail": "One or more request values are invalid.",
@@ -205,7 +209,15 @@ Validation messages are not a stable programmatic interface; validation `code` v
 
 ### Framework and security errors
 
-DRF exceptions, parser/content-type errors, CSRF failures, authentication failures, permission failures, and not-found responses under the versioned application API must be normalized to Problem Details unless a protocol standard requires a different representation.
+#### csrf-failed
+
+A Django CSRF rejection on a versioned application endpoint uses HTTP `403 Forbidden` and the `#csrf-failed` problem type above. The response does not expose the framework's internal CSRF reason.
+
+#### permission-denied
+
+A successfully authenticated principal that lacks application permission uses HTTP `403 Forbidden` and the `#permission-denied` problem type above unless RFC 6750 requires the `insufficient_scope` bearer challenge semantics.
+
+Other DRF exceptions, parser/content-type errors, authentication failures, and not-found responses under the versioned application API are normalized to Problem Details unless a protocol standard requires a different representation. Generic HTTP failures may use `about:blank` when no Itemshelf-specific problem semantics are needed.
 
 Server errors must not expose stack traces, SQL, credentials, access tokens, refresh tokens, device codes, or other internal detail.
 
