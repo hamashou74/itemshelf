@@ -96,7 +96,7 @@ The services are:
 
 PostgreSQL 18 changed the Docker Official Image data layout. The Compose volume is therefore mounted at `/var/lib/postgresql`, not the pre-18 `/var/lib/postgresql/data` path.
 
-Neither PostgreSQL port 5432 nor Django port 8000 is published to the host. The frontend is the only published service and binds to `127.0.0.1:3000` by default. `ITEMSHELF_BIND_ADDRESS` and `ITEMSHELF_PORT` may change that host bind, but changing the address is not a substitute for the trusted HTTPS ingress required by the deployment security contract above.
+Neither PostgreSQL port 5432 nor Django port 8000 is published to the host. The frontend is the only published service and binds to `127.0.0.1:3000` by default. `ITEMSHELF_BIND_ADDRESS` and `ITEMSHELF_PORT` may change that host bind, but changing the address is not a substitute for the trusted HTTPS ingress required by the deployment security contract above. The Next.js browser session cookie remains `Secure` for production non-loopback hosts and HTTPS-forwarded requests; only direct loopback HTTP access omits `Secure` so the documented local endpoint can retain authenticated sessions.
 
 Self-host secrets are operator-owned values in the root `.env` file. Start from `.env.example`; Compose rejects startup when the required PostgreSQL, Django, or frontend session secret is empty. The current `DATABASE_URL` construction expects a URL-safe PostgreSQL password, so the documented generation command uses hexadecimal output.
 

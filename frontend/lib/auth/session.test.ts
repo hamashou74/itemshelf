@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   cookies: vi.fn(),
+  headers: vi.fn(),
   get: vi.fn(),
   set: vi.fn(),
 }));
@@ -13,6 +14,7 @@ vi.mock("server-only", () => ({}));
 
 vi.mock("next/headers", () => ({
   cookies: mocks.cookies,
+  headers: mocks.headers,
 }));
 
 import {
@@ -37,6 +39,7 @@ describe("session", () => {
     vi.clearAllMocks();
     process.env.SESSION_SECRET = SESSION_SECRET;
     storedCookie = undefined;
+    mocks.headers.mockResolvedValue(new Headers({ host: "localhost:3000" }));
 
     mocks.get.mockImplementation((name: string) =>
       storedCookie?.name === name
@@ -63,6 +66,7 @@ describe("session", () => {
 
   afterEach(() => {
     vi.useRealTimers();
+    vi.unstubAllEnvs();
     delete process.env.SESSION_SECRET;
   });
 
@@ -73,6 +77,29 @@ describe("session", () => {
       "SESSION_SECRET must be at least 32 characters.",
     );
     expect(mocks.set).not.toHaveBeenCalled();
+  });
+
+  it("keeps production cookies secure except for direct loopback HTTP", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+
+    mocks.headers.mockResolvedValue(new Headers({ host: "127.0.0.1:3000" }));
+    await setSession({ sessionId: "loopback-session" });
+    expect(storedCookie?.options.secure).toBe(false);
+
+    mocks.headers.mockResolvedValue(
+      new Headers({ host: "itemshelf.example.com" }),
+    );
+    await setSession({ sessionId: "public-session" });
+    expect(storedCookie?.options.secure).toBe(true);
+
+    mocks.headers.mockResolvedValue(
+      new Headers({
+        host: "127.0.0.1:3000",
+        "x-forwarded-proto": "https",
+      }),
+    );
+    await setSession({ sessionId: "proxied-session" });
+    expect(storedCookie?.options.secure).toBe(true);
   });
 
   it("stores the Django session id only inside an encrypted frontend cookie", async () => {

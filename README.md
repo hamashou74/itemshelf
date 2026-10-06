@@ -71,7 +71,7 @@ curl --fail http://127.0.0.1:3000/health
 docker compose ps
 ```
 
-The direct host bind is intentionally loopback-only. It is suitable for local access and for handing traffic to a host-level reverse proxy, but it is not the final public ingress contract. Do not expose the bind address to an untrusted network without the trusted HTTPS ingress described in `docs/deployment.md`.
+The direct host bind is intentionally loopback-only. Authenticated browser sessions are supported on the default loopback HTTP endpoint: the frontend omits the cookie `Secure` attribute only for direct loopback HTTP access. Production requests for non-loopback hosts remain `Secure`, and a trusted ingress that forwards `X-Forwarded-Proto: https` also keeps the cookie `Secure`. Do not expose the bind address to an untrusted network without the trusted HTTPS ingress described in `docs/deployment.md`.
 
 Stop the application while preserving PostgreSQL data:
 
