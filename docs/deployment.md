@@ -258,14 +258,18 @@ Or use Railway's official installer:
 bash <(curl -fsSL railway.com/install.sh) -y
 ```
 
-Then authenticate, link the checkout, and review the plan:
+Then authenticate, link the checkout, explicitly select the persistent `staging` environment, and review the plan:
 
 ```bash
 railway --version
 railway login
 railway link
+railway environment staging
+railway status
 railway config plan --detailed-exit-code
 ```
+
+Before planning or applying, verify that `railway status` reports `staging`. Do not use this persistent staging authoring file against a native PR Environment such as `itemshelf-pr-91`; PR Environments intentionally deploy the pull-request branch, while the staging baseline declares `master`.
 
 The pinned `railway@3.12.0` SDK requires Railway CLI 5.42.1 or newer. The repository's pinned Node.js 24 runtime satisfies the SDK's Node.js 22+ requirement.
 
