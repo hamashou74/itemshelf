@@ -240,10 +240,28 @@ A pull request that removes the old `pull_request_target` workflow can still rec
 
 The committed baseline describes the existing `frontend`, `backend`, `Postgres`, and `postgres-volume` resources. Docker remains responsible for building the frontend and backend images. Railway native PR Environments remain responsible for preview lifecycle and are not managed by the IaC file.
 
-Install the repository-level SDK and use a current Railway CLI that supports the TypeScript IaC engine:
+Install the repository-level SDK:
 
 ```bash
 npm install
+```
+
+The `railway` npm package is the TypeScript SDK used by `.railway/railway.ts`; it does not provide the `railway` CLI command. Install Railway CLI separately. On macOS with Homebrew:
+
+```bash
+brew install railway
+```
+
+Or use Railway's official installer:
+
+```bash
+bash <(curl -fsSL railway.com/install.sh) -y
+```
+
+Then authenticate, link the checkout, and review the plan:
+
+```bash
+railway --version
 railway login
 railway link
 railway config plan --detailed-exit-code
