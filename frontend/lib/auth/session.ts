@@ -60,10 +60,7 @@ async function shouldUseSecureCookie(): Promise<boolean> {
   return host === null || !isLoopbackHost(host);
 }
 
-function getSessionOptions(
-  secure: boolean,
-  maxAge?: number,
-): SessionOptions {
+function getSessionOptions(secure: boolean, maxAge?: number): SessionOptions {
   return {
     password: getSessionSecret(),
     cookieName: SESSION_COOKIE_NAME,
