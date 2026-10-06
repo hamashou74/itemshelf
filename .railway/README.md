@@ -10,13 +10,29 @@ The application Dockerfiles remain the image build contract. The root `compose.y
 
 ## Prerequisites
 
-The root `package.json` pins the Railway TypeScript SDK. Install repository-level tooling from the repository root:
+The root `package.json` pins the Railway TypeScript SDK used by `.railway/railway.ts`. Install that repository-local SDK from the repository root:
 
 ```bash
 npm install
 ```
 
-Use Railway CLI 5.42.1 or newer with the pinned `railway@3.12.0` SDK.
+The SDK package is named `railway`, but it does not install the `railway` CLI command. Install Railway CLI separately. On macOS with Homebrew:
+
+```bash
+brew install railway
+```
+
+Alternatively, use Railway's official installer:
+
+```bash
+bash <(curl -fsSL railway.com/install.sh) -y
+```
+
+The IaC authoring package requires Railway CLI 5.42.1 or newer. Verify the CLI before continuing:
+
+```bash
+railway --version
+```
 
 Authenticate and link the checkout to the Itemshelf `staging` environment:
 
