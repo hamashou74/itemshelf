@@ -23,11 +23,11 @@ The Node.js version is managed by the root `mise.toml`.
 
 ## Environment Variables
 
-- `API_TIMEOUT_MS`
-- `BACKEND_API_ORIGIN`
-- `SESSION_SECRET`
+- `SESSION_SECRET`: required in every runtime; use a random value of at least 32 characters.
+- `BACKEND_API_ORIGIN`: defaults to `http://127.0.0.1:8000` only when `NODE_ENV=development`; required outside development.
+- `API_TIMEOUT_MS`: defaults to `10000` only when `NODE_ENV=development`; required outside development.
 
-`SESSION_SECRET` is a server-only secret used by Next.js to encrypt and verify the browser-facing session cookie. Use a random value of at least 32 characters and do not expose it publicly.
+`SESSION_SECRET` is a server-only secret used by Next.js to encrypt and verify the browser-facing session cookie. Do not expose it publicly. Development defaults remain overridable through process environment variables, while deployment remains fail-fast when backend configuration is missing.
 
 ## Web Application Architecture
 

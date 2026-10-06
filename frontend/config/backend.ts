@@ -2,6 +2,9 @@ import "server-only";
 
 import { z } from "zod";
 
+const DEVELOPMENT_BACKEND_API_ORIGIN = "http://127.0.0.1:8000";
+const DEVELOPMENT_API_TIMEOUT_MS = "10000";
+
 const BACKEND_API_ORIGIN_REQUIRED = "BACKEND_API_ORIGIN is required.";
 const BACKEND_API_ORIGIN_PROTOCOL =
   "BACKEND_API_ORIGIN must use the http or https protocol.";
@@ -41,10 +44,33 @@ const ApiTimeoutMsSchema = z
       .positive({ error: API_TIMEOUT_INVALID }),
   );
 
+function withDevelopmentDefault(
+  value: string | undefined,
+  developmentDefault: string,
+): string | undefined {
+  if (value !== undefined) {
+    return value;
+  }
+
+  return process.env.NODE_ENV === "development"
+    ? developmentDefault
+    : undefined;
+}
+
 export function getBackendApiOrigin(): string {
-  return BackendApiOriginSchema.parse(process.env.BACKEND_API_ORIGIN);
+  return BackendApiOriginSchema.parse(
+    withDevelopmentDefault(
+      process.env.BACKEND_API_ORIGIN,
+      DEVELOPMENT_BACKEND_API_ORIGIN,
+    ),
+  );
 }
 
 export function getApiTimeoutMs(): number {
-  return ApiTimeoutMsSchema.parse(process.env.API_TIMEOUT_MS);
+  return ApiTimeoutMsSchema.parse(
+    withDevelopmentDefault(
+      process.env.API_TIMEOUT_MS,
+      DEVELOPMENT_API_TIMEOUT_MS,
+    ),
+  );
 }

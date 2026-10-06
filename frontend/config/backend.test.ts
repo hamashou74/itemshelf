@@ -14,6 +14,8 @@ describe("backend config", () => {
   });
 
   afterEach(() => {
+    vi.unstubAllEnvs();
+
     if (ORIGINAL_BACKEND_API_ORIGIN === undefined) {
       delete process.env.BACKEND_API_ORIGIN;
     } else {
@@ -66,9 +68,19 @@ describe("backend config", () => {
     },
   );
 
-  it("requires both backend environment variables", () => {
+  it("uses application defaults when development overrides are absent", () => {
     delete process.env.BACKEND_API_ORIGIN;
     delete process.env.API_TIMEOUT_MS;
+    vi.stubEnv("NODE_ENV", "development");
+
+    expect(getBackendApiOrigin()).toBe("http://127.0.0.1:8000");
+    expect(getApiTimeoutMs()).toBe(10000);
+  });
+
+  it("requires both backend environment variables outside development", () => {
+    delete process.env.BACKEND_API_ORIGIN;
+    delete process.env.API_TIMEOUT_MS;
+    vi.stubEnv("NODE_ENV", "production");
 
     expect(() => getBackendApiOrigin()).toThrow(
       "BACKEND_API_ORIGIN is required.",

@@ -28,7 +28,7 @@ For example, a random value can be generated locally with:
 openssl rand -base64 48
 ```
 
-Generate separate values for each secret. The `.env.development` files are local, operator-owned configuration and must not be committed. `mise run setup` does not create or overwrite them.
+Generate separate values for each secret. The `.env.development` files intentionally contain only values that must be supplied by the developer and must not be committed. Backend development defaults to SQLite at `backend/db.sqlite3` with loopback-only allowed hosts, while frontend development defaults to `http://127.0.0.1:8000` with a 10-second API timeout. Those defaults may still be overridden through process environment variables when a non-standard local setup requires it. `mise run setup` does not create or overwrite the development environment files.
 
 After the development environment files are configured, set up the repository:
 
@@ -49,7 +49,7 @@ cp .env.example .env
 chmod 600 .env
 ```
 
-Set `POSTGRES_PASSWORD`, `DJANGO_SECRET_KEY`, and `SESSION_SECRET` in `.env`. Generate each value separately. The PostgreSQL password is embedded in a database URL by the current deployment settings, so use URL-safe characters; a hex value is suitable:
+Set `POSTGRES_PASSWORD`, `DJANGO_SECRET_KEY`, and `SESSION_SECRET` in `.env`. These are the only required values in the self-host environment file. `ITEMSHELF_BIND_ADDRESS` and `ITEMSHELF_PORT` are optional overrides because `compose.yaml` owns their defaults. Generate each secret separately. The PostgreSQL password is embedded in a database URL by the current deployment settings, so use URL-safe characters; a hex value is suitable:
 
 ```bash
 openssl rand -hex 32

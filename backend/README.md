@@ -4,7 +4,7 @@ Repository setup, tool versions, development environment preparation, and the co
 
 ## Local Development
 
-The backend development environment file is `backend/.env.development`. Create it manually from `backend/.env.development.example` and configure `DJANGO_SECRET_KEY` as described in the root README. `mise run setup` does not create or overwrite development environment files.
+The backend development environment file is `backend/.env.development`. Create it manually from `backend/.env.development.example` and configure `DJANGO_SECRET_KEY` as described in the root README. The development settings own the standard loopback `DJANGO_ALLOWED_HOSTS` and SQLite `DATABASE_URL` defaults; process environment variables may override them for non-standard local setups. `manage.py` selects `config.settings.development` by default, so that value is not duplicated in the development env file. `mise run setup` does not create or overwrite development environment files.
 
 After repository setup, start both applications from the repository root with:
 
