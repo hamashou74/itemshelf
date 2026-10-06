@@ -34,12 +34,16 @@ The IaC authoring package requires Railway CLI 5.42.1 or newer. Verify the CLI b
 railway --version
 ```
 
-Authenticate and link the checkout to the Itemshelf `staging` environment:
+Authenticate, link the project, then explicitly select the persistent `staging` environment:
 
 ```bash
 railway login
 railway link
+railway environment staging
+railway status
 ```
+
+Before running any IaC plan or apply, verify that `railway status` reports the `staging` environment. Do not plan or apply this file against a native PR Environment such as `itemshelf-pr-91`; PR Environments intentionally deploy the pull-request branch, while this persistent staging baseline declares `master`.
 
 ## Review the baseline
 
