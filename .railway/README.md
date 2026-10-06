@@ -1,54 +1,62 @@
 # Railway configuration
 
-This project defines its Railway infrastructure in code.
+Itemshelf manages the persistent Railway `staging` topology with the project-level authoring file:
 
-```txt
+```text
 .railway/railway.ts
 ```
 
-Use this file to describe the Railway project you want: services, databases, buckets, custom domains, replicas, groups, and environment variables.
+The application Dockerfiles remain the image build contract. The root `compose.yaml` is the separate self-host topology. Railway native PR Environments remain the preview lifecycle.
 
-The TypeScript file imports `railway/iac`. Install the SDK from the repository root:
+## Prerequisites
 
-```bash
-npm install railway
-```
-
-## Common commands
-
-Create the configuration files:
+The root `package.json` pins the Railway TypeScript SDK. Install repository-level tooling from the repository root:
 
 ```bash
-railway config init
+npm install
 ```
 
-Import an existing Railway project into code:
+Use Railway CLI 5.42.1 or newer with the pinned `railway@3.12.0` SDK.
+
+Authenticate and link the checkout to the Itemshelf `staging` environment:
 
 ```bash
-railway config pull
+railway login
+railway link
 ```
 
-Preview what Railway would change:
+## Review the baseline
+
+Preview changes without applying them:
 
 ```bash
-railway config plan
+railway config plan --detailed-exit-code
 ```
 
-Apply the planned changes:
+A clean baseline exits with code `0` and reports that the Railway configuration is already up to date. Exit code `2` means the authoring file and live environment differ.
+
+Do not apply a plan that unexpectedly creates, deletes, unmounts, or reconfigures `frontend`, `backend`, `Postgres`, `postgres-volume`, networking, domains, or variables.
+
+## Refresh from Railway
+
+When the live `staging` state intentionally changes, refresh the authoring file and inspect the generated diff:
+
+```bash
+railway config pull --force
+git diff -- .railway/railway.ts
+railway config plan --detailed-exit-code
+```
+
+Do not use `--include-variables` for committed configuration. That option can decrypt and inline non-sealed values. Keep Railway-managed values represented by `preserve()` or explicit resource references.
+
+Generated Railway service domains are platform-managed and do not need to be authored. Existing unauthored networking keys remain untouched by Railway IaC.
+
+## Apply
+
+Apply only after reviewing an authoritative plan:
 
 ```bash
 railway config apply
 ```
 
-## Notes
-
-- `railway config plan` is safe and does not change Railway.
-- `railway config apply` previews changes and asks before applying unless you pass `--yes`.
-- Destructive changes in non-interactive or agent sessions require `railway config apply --confirm-destructive` after reviewing the plan.
-- CI should pin a plan (`railway config plan --out railway-plan.json`) and apply that file on merge (`railway config apply --plan railway-plan.json --yes --confirm-destructive`) so the reviewed change set is what lands. On GitHub Actions, use https://github.com/railwayapp/config.
-- Services already managed by `railway.json` must be migrated before `.railway/railway.ts` can manage them.
-- Keep one `.railway` file for the whole project. A named `export const partial` (or `PARTIAL` / `const Partial`) is a last resort for separate repos that cannot share one file. Do not add it unless omit=delete across repos is a blocker.
-- Use `replicas` for scaling; advanced placement can still specify region names.
-- Use `group("Name", [resources])` to keep large projects organized on the Railway canvas.
-- Secrets imported from Railway are rendered as `preserve()` so existing values are retained without writing secret values to source. Use `railway config pull --omit-preserved-variables` for a smaller import. `railway config pull --include-variables` decrypts and inlines non-sealed values (including secrets that were never sealed).
-- `railway config migrate` finds every `railway.json` / `railway.toml` in the repository and writes them into this one file.
+Automated plan/apply in GitHub Actions is intentionally outside the scope of the baseline change.

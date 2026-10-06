@@ -8,3 +8,6 @@ research/
 .vscode/*
 !.vscode/extensions.json
 !.vscode/settings.json
+
+# Docker Compose
+/.env

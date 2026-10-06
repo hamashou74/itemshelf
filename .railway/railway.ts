@@ -22,6 +22,9 @@ export default defineRailway(() => {
     },
     healthcheck: "/api/health",
     preDeploy: "python manage.py migrate --noinput",
+    deploy: {
+      preDeployTimeoutSeconds: 300,
+    },
     replicas: { sfo: 1 },
     env: {
       DATABASE_URL: preserve(),

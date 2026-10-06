@@ -4,7 +4,7 @@ Repository setup, tool versions, development environment preparation, and the co
 
 ## Local Development
 
-The backend development environment file is `backend/.env.development`. Create it manually from `backend/.env.development.example` and configure `DJANGO_SECRET_KEY` as described in the root README. `mise run setup` does not create or overwrite development environment files.
+The backend development environment file is `backend/.env.development`. Create it manually from `backend/.env.development.example` and configure `DJANGO_SECRET_KEY` as described in the root README. The development settings own the standard loopback `DJANGO_ALLOWED_HOSTS` and SQLite `DATABASE_URL` defaults; process environment variables may override them for non-standard local setups. `manage.py` selects `config.settings.development` by default, so that value is not duplicated in the development env file. `mise run setup` does not create or overwrite development environment files.
 
 After repository setup, start both applications from the repository root with:
 
@@ -46,7 +46,7 @@ Other backend tasks defined in `pyproject.toml`, including `lint`, `format`, `fo
 
 ## API Schema
 
-`backend/schema.yaml` is the source of truth for the frontend-to-backend API contract.
+`backend/schema.yaml` is the machine-readable source of truth for the Itemshelf API contract. The Next.js web application is one first-party consumer; other first-party API clients may consume the same contract where their authentication and deployment requirements allow it. First-party device authentication is specified in [`docs/device-authentication.md`](../docs/device-authentication.md).
 
 Generate and validate the schema directly with:
 

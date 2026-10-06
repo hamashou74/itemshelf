@@ -23,15 +23,17 @@ The Node.js version is managed by the root `mise.toml`.
 
 ## Environment Variables
 
-- `API_TIMEOUT_MS`
-- `BACKEND_API_ORIGIN`
-- `SESSION_SECRET`
+- `SESSION_SECRET`: required in every runtime; use a random value of at least 32 characters.
+- `BACKEND_API_ORIGIN`: defaults to `http://127.0.0.1:8000` only when `NODE_ENV=development`; required outside development.
+- `API_TIMEOUT_MS`: defaults to `10000` only when `NODE_ENV=development`; required outside development.
 
-`SESSION_SECRET` is a server-only secret used by Next.js to encrypt and verify the browser-facing session cookie. Use a random value of at least 32 characters and do not expose it publicly.
+`SESSION_SECRET` is a server-only secret used by Next.js to encrypt and verify the browser-facing session cookie. Do not expose it publicly. Development defaults remain overridable through process environment variables, while deployment remains fail-fast when backend configuration is missing.
 
-## Application Architecture
+## Web Application Architecture
 
-Itemshelf の product web application は、次の境界を採用する。
+この節は Itemshelf の product web application の境界を定義する。Itemshelf 全体の API client と service の関係は [`docs/api-architecture.md`](../docs/api-architecture.md) を参照する。
+
+Web application は、次の境界を採用する。
 
 ```text
 Browser
@@ -132,7 +134,7 @@ Login and logout are Server Actions. Django issues and invalidates the authorita
 
 ### Backend Contract Boundary
 
-`backend/schema.yaml` is the source of truth for the Next.js-to-Django API contract. Orval generates Axios clients, TypeScript models, Zod schemas, MSW handlers, and Faker factories under `lib/backend/generated/`.
+`backend/schema.yaml` is the machine-readable source of truth for the Itemshelf API contract. Next.js is one first-party consumer of that contract. Orval generates Axios clients, TypeScript models, Zod schemas, MSW handlers, and Faker factories under `lib/backend/generated/`.
 
 Runtime application code outside `lib/backend/**` must not import generated Django artifacts directly. Feature code depends on server-only modules under `lib/backend/*`, which own generated transport details and contract parsing.
 
@@ -155,7 +157,7 @@ For a new feature, use a Server Component + feature query for reads and a Server
 
 ## API Client Generation
 
-`backend/schema.yaml` is the source of truth for the frontend-to-backend API contract.
+`backend/schema.yaml` is the source of truth for the Itemshelf API contract consumed by the frontend.
 
 Generated artifacts include:
 
