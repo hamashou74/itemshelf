@@ -65,6 +65,56 @@ docker build --file frontend/Dockerfile --tag itemshelf-frontend:local .
 
 The frontend image regenerates the Orval client before `next build`; generated client files remain uncommitted. The production image uses Next.js standalone output. The backend image installs application dependencies from `backend/uv.lock` and runs Gunicorn. PostgreSQL connectivity uses the Psycopg 3 binary implementation selected in `backend/pyproject.toml`.
 
+## Self-host Docker Compose topology
+
+The root `compose.yaml` is the repository-owned source-build topology for self-hosting. It reuses the same production Dockerfiles used by hosted deployment and keeps service boundaries explicit:
+
+```text
+Host loopback / trusted ingress
+             ↓
+        Next.js frontend
+             ↓ Compose network
+         Django / DRF
+             ↓
+          PostgreSQL
+
+PostgreSQL healthy
+        ↓
+migration job completed
+        ↓
+backend healthy
+        ↓
+frontend
+```
+
+The services are:
+
+- `postgres`: PostgreSQL 18 with a persistent named volume and a `pg_isready` healthcheck.
+- `migrate`: a one-shot backend image that runs `python manage.py migrate --noinput` after PostgreSQL becomes healthy.
+- `backend`: the existing Gunicorn image using `config.settings.deployment`; startup requires both PostgreSQL health and successful migration.
+- `frontend`: the existing Next.js standalone image; it uses `http://backend:8000` as its server-only backend origin and starts after backend readiness succeeds.
+
+PostgreSQL 18 changed the Docker Official Image data layout. The Compose volume is therefore mounted at `/var/lib/postgresql`, not the pre-18 `/var/lib/postgresql/data` path.
+
+Neither PostgreSQL port 5432 nor Django port 8000 is published to the host. The frontend is the only published service and binds to `127.0.0.1:3000` by default. `ITEMSHELF_BIND_ADDRESS` and `ITEMSHELF_PORT` may change that host bind, but changing the address is not a substitute for the trusted HTTPS ingress required by the deployment security contract above. The Next.js browser session cookie remains `Secure` for production non-loopback hosts and HTTPS-forwarded requests; only direct loopback HTTP access omits `Secure` so the documented local endpoint can retain authenticated sessions.
+
+Self-host secrets are operator-owned values in the root `.env` file. Start from `.env.example`; Compose rejects startup when the required PostgreSQL, Django, or frontend session secret is empty. The current `DATABASE_URL` construction expects a URL-safe PostgreSQL password, so the documented generation command uses hexadecimal output.
+
+The Compose stack does not make the Django API publicly reachable. A public API path for first-party devices requires the intentional reverse-proxy/TLS ingress contract handled separately. Railway remains an independent deployment consumer of the same Docker images; this Compose topology does not replace or configure Railway.
+
+From the repository root:
+
+```bash
+cp .env.example .env
+chmod 600 .env
+# Fill the required secrets in .env.
+
+docker compose config --quiet
+docker compose up --build --wait
+```
+
+`docker compose down` stops the stack and preserves the `postgres_data` volume. Removing that volume is a destructive data-management operation and is not part of normal shutdown.
+
 ## Verify deployment settings
 
 Django deployment settings are configured entirely through process environment variables and do not load a committed `.env` file.

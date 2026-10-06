@@ -11,10 +11,13 @@ environ.Env.read_env(base.BASE_DIR / ".env.development")
 DEBUG = True
 
 SECRET_KEY = env("DJANGO_SECRET_KEY")
-ALLOWED_HOSTS = env.list("DJANGO_ALLOWED_HOSTS")
+ALLOWED_HOSTS = env.list(
+    "DJANGO_ALLOWED_HOSTS",
+    default=["localhost", "127.0.0.1", "[::1]"],
+)
 
 DATABASES = {
-    "default": env.db(),
+    "default": env.db_url("DATABASE_URL", default="sqlite:///db.sqlite3"),
 }
 
 database = DATABASES["default"]
