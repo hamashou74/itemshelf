@@ -13,7 +13,7 @@ The application Dockerfiles remain the image build contract. The root `compose.y
 The root `package.json` pins the Railway TypeScript SDK used by `.railway/railway.ts`. Install that repository-local SDK from the repository root:
 
 ```bash
-npm install
+npm ci
 ```
 
 The SDK package is named `railway`, but it does not install the `railway` CLI command. Install Railway CLI separately. On macOS with Homebrew:
@@ -28,7 +28,7 @@ Alternatively, use Railway's official installer:
 bash <(curl -fsSL railway.com/install.sh) -y
 ```
 
-The IaC authoring package requires Railway CLI 5.42.1 or newer. Verify the CLI before continuing:
+The pinned `railway@3.13.0` IaC authoring package requires Railway CLI 5.42.1 or newer. Verify the CLI before continuing:
 
 ```bash
 railway --version
@@ -43,9 +43,15 @@ railway environment staging
 railway status
 ```
 
-Before running any IaC plan or apply, verify that `railway status` reports the `staging` environment. Do not plan or apply this file against a native PR Environment such as `itemshelf-pr-91`; PR Environments intentionally deploy the pull-request branch, while this persistent staging baseline declares `master`.
+Before running any IaC plan or apply, verify that `railway status` reports the `staging` environment. The authoring file also fails closed unless Railway evaluates it for the `Itemshelf` project and `staging` environment. Native PR Environments such as `itemshelf-pr-91` intentionally deploy the pull-request branch and must not be managed by this persistent staging baseline.
 
 ## Review the baseline
+
+Type-check the committed authoring file before using it:
+
+```bash
+npm run railway:typecheck
+```
 
 Preview changes without applying them:
 
