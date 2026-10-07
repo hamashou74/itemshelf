@@ -104,7 +104,7 @@ jobs:
         run: docker compose up --build --wait --wait-timeout 180
 
       - name: Verify frontend health
-        run: curl --fail --show-error --silent http://127.0.0.1:3000/health
+        run: curl --fail --show-error --silent --max-time 10 http://127.0.0.1:3000/health
 
       - name: Verify frontend-to-backend database path
         run: docker compose exec -T frontend node --input-type=module < frontend/scripts/ci/verify-backend-health.mjs
