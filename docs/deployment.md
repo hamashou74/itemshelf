@@ -276,13 +276,20 @@ Itemshelf requires Railway CLI 5.46.0 or newer because the staging safety guard 
 
 `railway config plan` is read-only. With `--detailed-exit-code`, exit code `0` means the selected Railway environment is already aligned with the authoring file, while exit code `2` means changes are pending. Review the complete plan before any apply.
 
-To intentionally refresh the authoring file from the current linked Railway environment, use:
+To inspect the current linked Railway environment without replacing repository-specific authoring logic, use:
 
 ```bash
-railway config pull --force
-git diff -- .railway/railway.ts
+railway config pull --json > /tmp/itemshelf-railway-staging.json
+```
+
+Review the imported graph and manually reconcile intended changes into `.railway/railway.ts`. Preserve the `Itemshelf / staging` target guard, then run:
+
+```bash
+npm run railway:typecheck
 railway config plan --detailed-exit-code
 ```
+
+Do not use `railway config pull --force` as the normal refresh workflow because it rewrites the authoring file from live Railway state and cannot reconstruct repository-specific safety logic such as the target guard.
 
 Do not use `railway config pull --include-variables` for a committed baseline because that option can decrypt and inline non-sealed Railway values. Imported values that must remain Railway-managed should stay represented by `preserve()` or by an explicit resource reference where the contract requires one.
 
