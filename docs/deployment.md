@@ -30,7 +30,7 @@ The Django container port must not be reachable directly from the public Interne
 
 Django uses `SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")` to interpret the trusted ingress scheme. This setting is safe only while untrusted clients cannot bypass the ingress and supply that header directly.
 
-Trusted private service-to-service traffic may use HTTP. This is intentional for environments such as Railway private networking and a future private Compose network. Therefore Django does not enable `SECURE_SSL_REDIRECT`; the public ingress owns HTTP-to-HTTPS redirect behavior. HSTS is also owned by the ingress so it can cover the complete public origin rather than only Django responses.
+Trusted private service-to-service traffic may use HTTP. This is intentional for environments such as Railway private networking and the self-host Compose network. Therefore Django does not enable `SECURE_SSL_REDIRECT`; the public ingress owns HTTP-to-HTTPS redirect behavior. HSTS is also owned by the ingress so it can cover the complete public origin rather than only Django responses.
 
 Django always marks its session and CSRF cookies `Secure` in deployment settings. The current Web/BFF continues to keep Django session and CSRF transport on the server side; the Browser receives only the Next.js-owned browser session described in [`../frontend/README.md`](../frontend/README.md).
 
@@ -116,6 +116,21 @@ docker compose up --build --wait
 ```
 
 `docker compose down` stops the stack and preserves the `postgres_data` volume. Removing that volume is a destructive data-management operation and is not part of normal shutdown.
+
+## CI deployment smoke test
+
+The GitHub Actions `Containers` job exercises this same root `compose.yaml` as an integration/deployment smoke test. It complements rather than replaces the fast backend and frontend CI jobs; the backend unit-test contract remains SQLite-backed.
+
+The smoke test supplies ephemeral CI-only values for the required self-host secrets, validates the resolved Compose model, and starts the complete stack with `docker compose up --build --wait`. The Compose dependency conditions therefore verify the PostgreSQL 18 healthcheck and successful one-shot migration before the backend and frontend are considered ready.
+
+After startup, CI verifies:
+
+- the frontend `/health` endpoint from the GitHub Actions runner;
+- from inside the frontend container, `BACKEND_API_ORIGIN` can reach backend `/api/health`;
+- backend `/api/health` returns its healthy payload after querying PostgreSQL;
+- `python manage.py migrate --check` reports no unapplied migrations against the running PostgreSQL database.
+
+If the smoke test fails, CI prints Compose service state and logs before teardown. The job always removes its containers, network, and CI-only named database volume. It does not publish PostgreSQL or Django ports and therefore preserves the same network boundary as the documented self-host topology.
 
 ## Verify deployment settings
 

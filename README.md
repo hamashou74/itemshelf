@@ -97,13 +97,15 @@ Format the repository:
 mise run format
 ```
 
-Run the complete repository checks:
+Run the repository code and tooling checks that do not require Docker:
 
 ```bash
 mise run ci
 ```
 
-These mise tasks are the canonical repository-level entry points. Backend Poe tasks and frontend npm scripts remain available when component-specific control is needed.
+GitHub Actions additionally runs the Docker Compose integration/deployment smoke test documented in `docs/deployment.md`. That smoke test is intentionally separate from `mise run ci` so Docker remains optional for normal local development.
+
+These mise tasks are the canonical repository-level entry points for normal development. Backend Poe tasks and frontend npm scripts remain available when component-specific control is needed.
 
 ## Backend Commands
 
