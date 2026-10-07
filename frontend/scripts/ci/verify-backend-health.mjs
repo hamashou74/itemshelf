@@ -18,9 +18,7 @@ const response = await fetch(healthUrl, {
 const body = await response.text();
 
 if (response.status !== 200) {
-  throw new Error(
-    `Backend health returned HTTP ${response.status}: ${body}`,
-  );
+  throw new Error(`Backend health returned HTTP ${response.status}: ${body}`);
 }
 
 let payload;
