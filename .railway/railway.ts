@@ -1,6 +1,13 @@
 import { defineRailway, github, postgres, preserve, project, service, volume } from "railway/iac";
 
-export default defineRailway(() => {
+export default defineRailway((ctx) => {
+  if (ctx.projectName !== "Itemshelf" || !ctx.isEnvironment("staging")) {
+    const target = `${ctx.projectName ?? "<unknown-project>"}/${ctx.environment ?? "<unknown-environment>"}`;
+    throw new Error(
+      `Refusing to evaluate Itemshelf staging IaC against ${target}. Link Railway CLI to Itemshelf/staging first.`,
+    );
+  }
+
   const itemshelf = github("hamashou74/itemshelf", {
     branch: "master",
     checkSuites: true,
