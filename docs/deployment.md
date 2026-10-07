@@ -69,7 +69,7 @@ The frontend image regenerates the Orval client before `next build`; generated c
 
 ## Self-host Docker Compose topology
 
-The root `compose.yaml` is the repository-owned source-build topology for self-hosting. It reuses the same production Dockerfiles used by hosted deployment and keeps service boundaries explicit:
+The root `compose.yaml` is the repository-owned self-host topology. It supports both repository-local source builds and prebuilt release images while keeping the same service boundaries. Source builds reuse the same production Dockerfiles used by hosted deployment:
 
 ```text
 Host loopback / trusted ingress
@@ -117,11 +117,58 @@ docker compose up --build --wait
 
 `docker compose down` stops the stack and preserves the `postgres_data` volume. Removing that volume is a destructive data-management operation and is not part of normal shutdown.
 
+## Run a tagged release without building application images
+
+Stable Itemshelf releases publish separate backend and frontend images to GitHub Container Registry:
+
+```text
+ghcr.io/hamashou74/itemshelf-backend:<version>
+ghcr.io/hamashou74/itemshelf-frontend:<version>
+```
+
+Use the exact release version for self-hosting rather than relying on the moving `:latest` tag. The backend and frontend image versions must match. Use the `compose.yaml` and `.env.example` files from the same Git tag as the images, then set the image overrides in the operator-owned `.env` file:
+
+```dotenv
+ITEMSHELF_BACKEND_IMAGE=ghcr.io/hamashou74/itemshelf-backend:0.2.0
+ITEMSHELF_FRONTEND_IMAGE=ghcr.io/hamashou74/itemshelf-frontend:0.2.0
+```
+
+After the required secrets are configured, pull the referenced images and start the existing topology without invoking a Docker build:
+
+```bash
+docker compose config --quiet
+docker compose pull
+docker compose up --no-build --wait
+```
+
+The migration service and backend service intentionally reference the same backend image. PostgreSQL still uses the Docker Official Image and remains private to the Compose network.
+
+GitHub Container Registry creates a newly published container package as private by default. After the first successful Itemshelf release, a package administrator must change both `itemshelf-backend` and `itemshelf-frontend` to public visibility before anonymous self-host pulls will work. This is a one-time package setting; subsequent versions published by the repository workflow remain in the same packages.
+
+## Container release workflow
+
+The `.github/workflows/release-containers.yml` workflow publishes application images when a stable SemVer tag matching `vMAJOR.MINOR.PATCH` is pushed. The workflow validates the tag format and refuses to publish if the tagged commit is not contained in `master`.
+
+For a tag such as `v0.2.0`, the workflow publishes both the immutable version tag and the moving stable alias:
+
+```text
+ghcr.io/hamashou74/itemshelf-backend:0.2.0
+ghcr.io/hamashou74/itemshelf-backend:latest
+ghcr.io/hamashou74/itemshelf-frontend:0.2.0
+ghcr.io/hamashou74/itemshelf-frontend:latest
+```
+
+Each image is published as a multi-platform manifest for `linux/amd64` and `linux/arm64`. The workflow authenticates to GHCR with the repository `GITHUB_TOKEN` and grants package write permission only to the publishing job; no long-lived registry credential is required. OCI labels record the repository source, release version, and source revision.
+
+The release tag is the image release-version source of truth. The component package metadata versions are not used to derive image tags.
+
+Do not create the first public container release until the repository licensing change tracked by issue #113 has reached `master`.
+
 ## CI deployment smoke test
 
 The GitHub Actions `Containers` job exercises this same root `compose.yaml` as an integration/deployment smoke test. It complements rather than replaces the fast backend and frontend CI jobs; the backend unit-test contract remains SQLite-backed.
 
-The smoke test supplies ephemeral CI-only values for the required self-host secrets, validates the resolved Compose model, and starts the complete stack with `docker compose up --build --wait`. The Compose dependency conditions therefore verify the PostgreSQL 18 healthcheck and successful one-shot migration before the backend and frontend are considered ready.
+The smoke test supplies ephemeral CI-only values for the required self-host secrets, validates the resolved Compose model, builds the backend and frontend images with explicit local image names, and then starts the complete stack with `docker compose up --no-build --wait`. This verifies that the same Compose topology can consume already-built application images. The dependency conditions also verify the PostgreSQL 18 healthcheck and successful one-shot migration before the backend and frontend are considered ready.
 
 After startup, CI verifies:
 
