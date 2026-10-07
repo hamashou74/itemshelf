@@ -240,10 +240,11 @@ A pull request that removes the old `pull_request_target` workflow can still rec
 
 The committed baseline describes the existing `frontend`, `backend`, `Postgres`, and `postgres-volume` resources. Docker remains responsible for building the frontend and backend images. Railway native PR Environments remain responsible for preview lifecycle and are not managed by the IaC file.
 
-Install the repository-level SDK:
+Install the locked repository-level tooling:
 
 ```bash
-npm install
+npm ci
+npm run railway:typecheck
 ```
 
 The `railway` npm package is the TypeScript SDK used by `.railway/railway.ts`; it does not provide the `railway` CLI command. Install Railway CLI separately. On macOS with Homebrew:
@@ -269,9 +270,9 @@ railway status
 railway config plan --detailed-exit-code
 ```
 
-Before planning or applying, verify that `railway status` reports `staging`. Do not use this persistent staging authoring file against a native PR Environment such as `itemshelf-pr-91`; PR Environments intentionally deploy the pull-request branch, while the staging baseline declares `master`.
+Before planning or applying, verify that `railway status` reports `staging`. The authoring file additionally rejects evaluation unless the selected target is the `Itemshelf` project and `staging` environment, so an accidental plan/apply against a native PR Environment or another Railway target fails before a desired-state graph is produced. PR Environments intentionally deploy the pull-request branch, while the staging baseline declares `master`.
 
-The pinned `railway@3.12.0` SDK requires Railway CLI 5.42.1 or newer. The repository's pinned Node.js 24 runtime satisfies the SDK's Node.js 22+ requirement.
+The pinned `railway@3.13.0` SDK requires Railway CLI 5.42.1 or newer. The repository's pinned Node.js 24 runtime satisfies the SDK's Node.js 22+ requirement.
 
 `railway config plan` is read-only. With `--detailed-exit-code`, exit code `0` means the selected Railway environment is already aligned with the authoring file, while exit code `2` means changes are pending. Review the complete plan before any apply.
 
