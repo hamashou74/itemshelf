@@ -272,7 +272,7 @@ railway config plan --detailed-exit-code
 
 Before planning or applying, verify that `railway status` reports `staging`. The authoring file additionally rejects evaluation unless the selected target is the `Itemshelf` project and `staging` environment, so an accidental plan/apply against a native PR Environment or another Railway target fails before a desired-state graph is produced. PR Environments intentionally deploy the pull-request branch, while the staging baseline declares `master`.
 
-The pinned `railway@3.13.0` SDK requires Railway CLI 5.42.1 or newer. The repository's pinned Node.js 24 runtime satisfies the SDK's Node.js 22+ requirement.
+Itemshelf requires Railway CLI 5.46.0 or newer because the staging safety guard depends on the IaC project/environment context available from that version onward. This is stricter than the SDK's own minimum CLI check. The repository's pinned Node.js 24 runtime satisfies the SDK's Node.js 22+ requirement.
 
 `railway config plan` is read-only. With `--detailed-exit-code`, exit code `0` means the selected Railway environment is already aligned with the authoring file, while exit code `2` means changes are pending. Review the complete plan before any apply.
 
