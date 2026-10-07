@@ -28,7 +28,7 @@ Alternatively, use Railway's official installer:
 bash <(curl -fsSL railway.com/install.sh) -y
 ```
 
-The pinned `railway@3.13.0` IaC authoring package requires Railway CLI 5.42.1 or newer. Verify the CLI before continuing:
+Itemshelf requires Railway CLI 5.46.0 or newer because the staging safety guard depends on the IaC project/environment context introduced in that CLI line. The pinned `railway@3.13.0` SDK itself accepts older CLI versions, but they do not provide enough target context for this repository's guard. Verify the CLI before continuing:
 
 ```bash
 railway --version
