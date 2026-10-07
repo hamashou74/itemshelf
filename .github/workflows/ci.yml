@@ -14,6 +14,37 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  tooling:
+    name: Repository tooling
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up mise
+        uses: jdx/mise-action@v4.3.0
+
+      - name: Generate root dependency lockfile
+        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+
+      - name: Install repository tooling
+        run: npm ci
+
+      - name: Type-check Railway IaC
+        run: npm run railway:typecheck
+
+      - name: Upload generated root lockfile
+        uses: actions/upload-artifact@v4
+        with:
+          name: root-package-lock
+          path: package-lock.json
+          if-no-files-found: error
+          retention-days: 1
+
   backend:
     name: Backend
     runs-on: ubuntu-latest
