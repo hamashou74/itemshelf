@@ -1,8 +1,14 @@
 import { defineRailway, github, postgres, preserve, project, service, volume } from "railway/iac";
 
 export default defineRailway((ctx) => {
+  if (!ctx.projectName || !ctx.environment) {
+    throw new Error(
+      "Railway IaC target context is unavailable. Use Railway CLI 5.46.0 or newer and link it to Itemshelf/staging.",
+    );
+  }
+
   if (ctx.projectName !== "Itemshelf" || !ctx.isEnvironment("staging")) {
-    const target = `${ctx.projectName ?? "<unknown-project>"}/${ctx.environment ?? "<unknown-environment>"}`;
+    const target = `${ctx.projectName}/${ctx.environment}`;
     throw new Error(
       `Refusing to evaluate Itemshelf staging IaC against ${target}. Link Railway CLI to Itemshelf/staging first.`,
     );
