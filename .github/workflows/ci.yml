@@ -14,6 +14,26 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  tooling:
+    name: Repository tooling
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up mise
+        uses: jdx/mise-action@v4.3.0
+
+      - name: Install repository tooling
+        run: mise run railway:setup
+
+      - name: Type-check Railway IaC
+        run: mise run railway:ci
+
   backend:
     name: Backend
     runs-on: ubuntu-latest

@@ -2,6 +2,8 @@
 
 Itemshelf uses Docker as the repository-owned deployment runtime contract. Docker is not required for normal local development; the root `mise.toml` and `mise run dev` remain the canonical development workflow.
 
+Railway project topology for the persistent `staging` environment is source-controlled in `.railway/railway.ts`. The application Dockerfiles remain the production image build contract, while the root `compose.yaml` remains the independent self-host topology; Railway IaC does not replace either contract.
+
 ## Deployment security contract
 
 The repository-owned Django deployment settings are platform-independent. A hosted platform, reverse proxy, or self-host ingress may implement the outer network boundary, but it must preserve the following contract:
@@ -138,16 +140,16 @@ The Railway deployment itself validates PostgreSQL connectivity during the pre-d
 
 ## Railway staging topology
 
-Create a persistent `staging` environment and connect the repository to two application services plus a Railway PostgreSQL service.
+The persistent `staging` environment is represented by `.railway/railway.ts` as two application services plus Railway PostgreSQL. Review infrastructure changes with `railway config plan` before applying them. A baseline plan must not unexpectedly recreate, delete, unmount, or reconfigure services, variables, domains, or volumes.
 
 ### frontend
 
 - Source: this GitHub repository, `master` branch.
 - Root directory: repository root (leave the service root unset rather than setting `/frontend`).
-- `RAILWAY_DOCKERFILE_PATH=/frontend/Dockerfile`.
+- Dockerfile: `/frontend/Dockerfile`.
 - Generate a Railway public domain.
 - Healthcheck path: `/health`.
-- Suggested watch paths:
+- Watch paths:
   - `/frontend/**`
   - `/backend/schema.yaml`
   - `/.dockerignore`
@@ -162,14 +164,16 @@ SESSION_SECRET=<staging-only random value of at least 32 characters>
 
 `BACKEND_API_ORIGIN` is server-only. The browser continues to talk only to Next.js. The frontend `/health` route is a service-local Railway readiness endpoint: it validates the frontend's required runtime configuration without making the frontend health result depend on another service's availability.
 
+The IaC baseline uses `preserve()` for existing Railway-managed application variable values so secrets and other live values are not copied into source control.
+
 ### backend
 
 - Source: this GitHub repository, `master` branch.
 - Root directory: repository root (leave the service root unset rather than setting `/backend`).
-- `RAILWAY_DOCKERFILE_PATH=/backend/Dockerfile`.
+- Dockerfile: `/backend/Dockerfile`.
 - Do not generate a public domain.
 - Healthcheck path: `/api/health`.
-- Suggested watch paths:
+- Watch paths:
   - `/backend/**`
   - `/.dockerignore`
 
@@ -195,6 +199,8 @@ Do not create preview users or credentials from deployment/application code. Tes
 ### Postgres
 
 Use Railway's PostgreSQL service and keep it private. Do not add a public TCP proxy for application operation. The backend consumes `${{Postgres.DATABASE_URL}}` through a Railway reference variable.
+
+The existing `postgres-volume` is part of the staging baseline and must be preserved at its current Railway mount. The repository's self-host `postgres_data` volume is a separate Compose resource and must not be substituted for the Railway-managed volume.
 
 ## PR environments
 
@@ -228,12 +234,79 @@ After the native lifecycle is the only PR Environment mechanism on `master`, ver
 
 A pull request that removes the old `pull_request_target` workflow can still receive both preview environments because GitHub loads that workflow from the base branch. Use the first subsequent pull request after this change reaches `master` as the authoritative duplicate-prevention check.
 
-## Railway configuration source
+## Railway Infrastructure as Code
 
-Do not add `railway.toml` or `railway.json` for new services. Railway has deprecated Config as Code for new services in favor of Infrastructure as Code (`.railway/railway.ts`). Keep the initial service configuration in Railway while the topology stabilizes; adopting Railway IaC can be a separate change later.
+`.railway/railway.ts` is the repository source of truth for the persistent Railway `staging` topology. The root `package.json` pins the TypeScript Railway SDK used by the authoring file; it is repository tooling and is separate from both application dependency sets.
+
+The committed baseline describes the existing `frontend`, `backend`, `Postgres`, and `postgres-volume` resources. Docker remains responsible for building the frontend and backend images. Railway native PR Environments remain responsible for preview lifecycle and are not managed by the IaC file.
+
+Install the locked repository-level tooling:
+
+```bash
+npm ci
+npm run railway:typecheck
+```
+
+The `railway` npm package is the TypeScript SDK used by `.railway/railway.ts`; it does not provide the `railway` CLI command. Install Railway CLI separately. On macOS with Homebrew:
+
+```bash
+brew install railway
+```
+
+Or use Railway's official installer:
+
+```bash
+bash <(curl -fsSL railway.com/install.sh) -y
+```
+
+Then authenticate, link the checkout, explicitly select the persistent `staging` environment, and review the plan:
+
+```bash
+railway --version
+railway login
+railway link
+railway environment staging
+railway status
+railway config plan --detailed-exit-code
+```
+
+Before planning or applying, verify that `railway status` reports `staging`. The authoring file additionally rejects evaluation unless the selected target is the `Itemshelf` project and `staging` environment, so an accidental plan/apply against a native PR Environment or another Railway target fails before a desired-state graph is produced. PR Environments intentionally deploy the pull-request branch, while the staging baseline declares `master`.
+
+Itemshelf requires Railway CLI 5.46.0 or newer because the staging safety guard depends on the IaC project/environment context available from that version onward. This is stricter than the SDK's own minimum CLI check. The repository's pinned Node.js 24 runtime satisfies the SDK's Node.js 22+ requirement.
+
+`railway config plan` is read-only. With `--detailed-exit-code`, exit code `0` means the selected Railway environment is already aligned with the authoring file, while exit code `2` means changes are pending. Review the complete plan before any apply.
+
+To inspect the current linked Railway environment without replacing repository-specific authoring logic, use:
+
+```bash
+railway config pull --json > /tmp/itemshelf-railway-staging.json
+```
+
+Review the imported graph and manually reconcile intended changes into `.railway/railway.ts`. Preserve the `Itemshelf / staging` target guard, then run:
+
+```bash
+npm run railway:typecheck
+railway config plan --detailed-exit-code
+```
+
+Do not use `railway config pull --force` as the normal refresh workflow because it rewrites the authoring file from live Railway state and cannot reconstruct repository-specific safety logic such as the target guard.
+
+Do not use `railway config pull --include-variables` for a committed baseline because that option can decrypt and inline non-sealed Railway values. Imported values that must remain Railway-managed should stay represented by `preserve()` or by an explicit resource reference where the contract requires one.
+
+Applying IaC remains manual in this change:
+
+```bash
+railway config apply
+```
+
+Do not apply unless the plan contains only the changes intentionally reviewed for that operation. In particular, a baseline refresh must not unexpectedly recreate or delete `frontend`, `backend`, `Postgres`, or `postgres-volume`, change public/private networking, or clear existing variables. GitHub Actions plan/apply automation is separate follow-up work.
+
+Do not add `railway.toml` or `railway.json`. Railway Config as Code is deprecated; `.railway/railway.ts` owns project-level Railway configuration while `compose.yaml` independently owns self-host runtime topology.
 
 ## Primary references
 
+- Railway Infrastructure as Code: https://docs.railway.com/infrastructure-as-code
+- Railway Infrastructure as Code reference: https://docs.railway.com/infrastructure-as-code/reference
 - Railway Dockerfiles: https://docs.railway.com/builds/dockerfiles
 - Railway monorepos: https://docs.railway.com/deployments/monorepo
 - Railway private networking: https://docs.railway.com/networking/private-networking

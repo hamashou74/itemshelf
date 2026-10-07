@@ -1,0 +1,11 @@
+{
+  "name": "itemshelf-repository-tools",
+  "private": true,
+  "scripts": {
+    "railway:typecheck": "tsc --noEmit --strict --target ES2022 --module Preserve --moduleResolution Bundler --skipLibCheck .railway/railway.ts"
+  },
+  "devDependencies": {
+    "railway": "3.13.0",
+    "typescript": "7.0.2"
+  }
+}

@@ -6,6 +6,10 @@ node = "24.19.0"
 uv = "0.12.6"
 lefthook = "2.1.12"
 
+[tasks."railway:setup"]
+description = "Install repository-level Railway IaC tooling"
+run = "npm ci"
+
 [tasks."backend:setup"]
 description = "Install backend dependencies"
 dir = "backend"
@@ -24,7 +28,7 @@ run = "npm run api:generate"
 [tasks.setup]
 description = "Set up repository dependencies and generated API client"
 run = [
-    { tasks = ["backend:setup", "frontend:setup"] },
+    { tasks = ["railway:setup", "backend:setup", "frontend:setup"] },
     { task = "frontend:api" },
     "lefthook install",
 ]
@@ -59,6 +63,10 @@ run = "npm run format"
 description = "Format the repository"
 depends = ["backend:format", "frontend:format"]
 
+[tasks."railway:ci"]
+description = "Type-check Railway IaC"
+run = "npm run railway:typecheck"
+
 [tasks."backend:ci"]
 description = "Run backend checks"
 dir = "backend"
@@ -73,6 +81,7 @@ env = { _.file = "frontend/.env.test" }
 [tasks.ci]
 description = "Run all repository checks"
 run = [
+    { task = "railway:ci" },
     { task = "backend:ci" },
     { task = "frontend:ci" },
 ]
