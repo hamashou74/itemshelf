@@ -37,13 +37,11 @@ jobs:
       - name: Type-check Railway IaC
         run: npm run railway:typecheck
 
-      - name: Upload generated root lockfile
-        uses: actions/upload-artifact@v4
-        with:
-          name: root-package-lock
-          path: package-lock.json
-          if-no-files-found: error
-          retention-days: 1
+      - name: Emit generated root lockfile
+        run: |
+          echo '---BEGIN_ROOT_PACKAGE_LOCK---'
+          cat package-lock.json
+          echo '---END_ROOT_PACKAGE_LOCK---'
 
   backend:
     name: Backend
