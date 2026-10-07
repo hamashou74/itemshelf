@@ -160,3 +160,6 @@ Repository-level setup and workflow remain canonical here. Component READMEs con
 - [`docs/api-contract.md`](docs/api-contract.md): versioned HTTP API, errors, pagination, identifiers, OAuth scopes, and compatibility policy.
 - [`docs/device-authentication.md`](docs/device-authentication.md): first-party device/API-client authentication and credential lifecycle.
 - [`docs/deployment.md`](docs/deployment.md): Docker deployment contract and Railway staging/PR environment setup.
+## License
+
+Itemshelf is licensed under the GNU Affero General Public License version 3 only (`AGPL-3.0-only`). See [`LICENSE`](LICENSE).
