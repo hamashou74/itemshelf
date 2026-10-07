@@ -30,7 +30,7 @@ The Django container port must not be reachable directly from the public Interne
 
 Django uses `SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")` to interpret the trusted ingress scheme. This setting is safe only while untrusted clients cannot bypass the ingress and supply that header directly.
 
-Trusted private service-to-service traffic may use HTTP. This is intentional for environments such as Railway private networking and a future private Compose network. Therefore Django does not enable `SECURE_SSL_REDIRECT`; the public ingress owns HTTP-to-HTTPS redirect behavior. HSTS is also owned by the ingress so it can cover the complete public origin rather than only Django responses.
+Trusted private service-to-service traffic may use HTTP. This is intentional for environments such as Railway private networking and the self-host Compose network. Therefore Django does not enable `SECURE_SSL_REDIRECT`; the public ingress owns HTTP-to-HTTPS redirect behavior. HSTS is also owned by the ingress so it can cover the complete public origin rather than only Django responses.
 
 Django always marks its session and CSRF cookies `Secure` in deployment settings. The current Web/BFF continues to keep Django session and CSRF transport on the server side; the Browser receives only the Next.js-owned browser session described in [`../frontend/README.md`](../frontend/README.md).
 
