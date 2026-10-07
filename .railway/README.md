@@ -65,13 +65,20 @@ Do not apply a plan that unexpectedly creates, deletes, unmounts, or reconfigure
 
 ## Refresh from Railway
 
-When the live `staging` state intentionally changes, refresh the authoring file and inspect the generated diff:
+When the live `staging` state intentionally changes, inspect Railway's imported state without overwriting the guarded authoring file:
 
 ```bash
-railway config pull --force
-git diff -- .railway/railway.ts
+railway config pull --json > /tmp/itemshelf-railway-staging.json
+```
+
+Review that imported state and reconcile the intended changes manually into `.railway/railway.ts`, preserving the `Itemshelf / staging` target guard. Then validate the edited file:
+
+```bash
+npm run railway:typecheck
 railway config plan --detailed-exit-code
 ```
+
+Do not use `railway config pull --force` as the normal refresh workflow: it rewrites the authoring file from live Railway state and cannot reconstruct repository-specific safety logic such as the target guard.
 
 Do not use `--include-variables` for committed configuration. That option can decrypt and inline non-sealed values. Keep Railway-managed values represented by `preserve()` or explicit resource references.
 
