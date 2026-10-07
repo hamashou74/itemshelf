@@ -28,20 +28,11 @@ jobs:
       - name: Set up mise
         uses: jdx/mise-action@v4.3.0
 
-      - name: Generate root dependency lockfile
-        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
-
       - name: Install repository tooling
-        run: npm ci
+        run: mise run railway:setup
 
       - name: Type-check Railway IaC
-        run: npm run railway:typecheck
-
-      - name: Emit generated root lockfile
-        run: |
-          echo '---BEGIN_ROOT_PACKAGE_LOCK---'
-          cat package-lock.json
-          echo '---END_ROOT_PACKAGE_LOCK---'
+        run: mise run railway:ci
 
   backend:
     name: Backend
